@@ -5,6 +5,9 @@ import { formatCents } from "@/lib/currency";
 import { QuoteTemplateEditor } from "@/components/admin/quote-template-editor";
 import type { QuoteTemplate, QuoteTemplateCategory } from "@/lib/types";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 const CATEGORY_LABELS: Record<QuoteTemplateCategory, string> = {
   wedding: "Wedding Collections",
   private_celebration: "Private Celebrations",

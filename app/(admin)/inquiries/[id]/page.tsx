@@ -8,6 +8,9 @@ import { InquiryActions } from "@/components/admin/inquiry-actions";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { FileText } from "lucide-react";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();

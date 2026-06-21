@@ -12,6 +12,7 @@ import { canTransitionContract, InvalidTransitionError } from "@/lib/status";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { contractUrl, adminContractUrl } from "@/lib/urls";
 
 function renderMergeFields(body: string, vars: Record<string, string>): string {
   return body.replace(/{{(\w+)}}/g, (_, key) => vars[key] ?? "");
@@ -131,7 +132,7 @@ export async function sendContractAction(contractId: string) {
       client_first_name: contract.client.first_name,
       event_type: "your event",
       event_date: formatDate(new Date().toISOString()),
-      contract_link: `${process.env.NEXT_PUBLIC_APP_URL}/c/${contract.public_id}`,
+      contract_link: contractUrl(contract.public_id),
       business_name: "Castaneda Strings",
     },
     client_id: contract.client_id,
@@ -190,6 +191,7 @@ export async function signContractPublicAction(input: unknown) {
       signer_name: data.signer_name,
       signer_email: data.signer_email,
       signature_text: data.signer_name,
+      signature_image: data.signature_image ?? null,
       client_signature: data.signer_name,
       signer_ip: ip,
       signer_user_agent: userAgent,
@@ -210,7 +212,7 @@ export async function signContractPublicAction(input: unknown) {
       client_name: contract.client?.full_name ?? data.signer_name,
       contract_title: contract.title,
       signed_at: formatDateTime(new Date().toISOString()),
-      admin_link: `${process.env.ADMIN_APP_URL}/contracts/${contract.id}`,
+      admin_link: adminContractUrl(contract.id),
     },
     contract_id: contract.id,
   });

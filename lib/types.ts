@@ -178,6 +178,7 @@ export interface Contract {
   signer_ip: string | null;
   signer_user_agent: string | null;
   signature_text: string | null;
+  signature_image: string | null;
   client_signature: string | null;
   service_ceremony: boolean;
   service_cocktail_hour: boolean;

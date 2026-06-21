@@ -9,6 +9,7 @@ import { sumLineItems, formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { canTransitionQuote, InvalidTransitionError } from "@/lib/status";
+import { quoteUrl, portalUrl, adminQuoteUrl } from "@/lib/urls";
 import { generateInvoiceFromQuoteAction } from "@/lib/actions/invoices";
 import { generateContractFromQuoteAction } from "@/lib/actions/contracts";
 import type { QuoteStatus } from "@/lib/types";
@@ -73,6 +74,15 @@ export async function createQuoteAction(input: unknown) {
     description: `Quote ${quote_number} created`,
   });
 
+  if (data.send) {
+    try {
+      await sendQuoteAction(quote.id);
+    } catch {
+      // creation already succeeded — if the send fails, the admin can still
+      // hit Send from the quote page. Don't block on it here.
+    }
+  }
+
   revalidatePath("/quotes");
   redirect(`/quotes/${quote.id}`);
 }
@@ -93,7 +103,7 @@ export async function sendQuoteAction(quoteId: string) {
     return { error: "This client doesn't have an email on file yet." };
   }
 
-  const quoteLink = `${process.env.NEXT_PUBLIC_APP_URL}/q/${quote.public_id}`;
+  const quoteLink = quoteUrl(quote.public_id);
 
   const result = await sendTemplateEmail({
     to: quote.client.email,
@@ -103,7 +113,7 @@ export async function sendQuoteAction(quoteId: string) {
       event_type: quote.event_type ?? "your event",
       event_date: formatDate(quote.event_date),
       quote_link: quoteLink,
-      portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${quote.client.portal_public_id}`,
+      portal_link: portalUrl(quote.client.portal_public_id) ?? "",
       business_name: "Castaneda Strings",
     },
     client_id: quote.client_id,
@@ -207,7 +217,7 @@ export async function respondToQuotePublicAction(
           client_name: quote.client.full_name,
           quote_number: quote.quote_number ?? "",
           total: formatCents(quote.total_cents, quote.currency),
-          admin_link: `${process.env.ADMIN_APP_URL}/quotes/${quote.id}`,
+          admin_link: adminQuoteUrl(quote.id),
         },
         quote_id: quote.id,
       });

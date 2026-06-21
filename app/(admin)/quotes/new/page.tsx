@@ -3,6 +3,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { QuoteForm } from "@/components/admin/quote-form";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function NewQuotePage({
   searchParams,
 }: {

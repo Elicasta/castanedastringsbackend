@@ -97,6 +97,7 @@ export function QuoteForm({
       internal_notes: formData.get("internal_notes"),
       discount_cents: dollarsToCents(discount),
       tax_cents: dollarsToCents(tax),
+      send: formData.get("intent") === "send",
       items: items
         .filter((i) => i.name.trim())
         .map((i) => ({
@@ -310,9 +311,27 @@ export function QuoteForm({
         <Textarea id="internal_notes" name="internal_notes" rows={2} />
       </div>
 
-      <Button type="submit" disabled={saving} className="w-full">
-        {saving ? "Saving…" : "Save draft quote"}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          name="intent"
+          value="draft"
+          disabled={saving}
+          variant="secondary"
+          className="flex-1"
+        >
+          {saving ? "Saving…" : "Save draft"}
+        </Button>
+        <Button
+          type="submit"
+          name="intent"
+          value="send"
+          disabled={saving}
+          className="flex-1"
+        >
+          {saving ? "Sending…" : "Save & send to client"}
+        </Button>
+      </div>
     </form>
   );
 }

@@ -6,6 +6,10 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { formatCents } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { CopyButton } from "@/components/admin/copy-button";
+import { portalUrl } from "@/lib/urls";
+
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,7 +25,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     supabase.from("contracts").select("*").eq("client_id", id).order("created_at", { ascending: false }),
   ]);
 
-  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/${client.portal_public_id}`;
+  const clientPortalUrl = portalUrl(client.portal_public_id);
 
   return (
     <div>
@@ -89,8 +93,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               One link with all of this client&apos;s quotes, invoices, and contracts. No login needed.
             </p>
             <div className="flex items-center gap-2 rounded-xl border border-border p-2 text-xs">
-              <span className="truncate flex-1">{portalUrl}</span>
-              <CopyButton value={portalUrl} />
+              <span className="truncate flex-1">{clientPortalUrl ?? "Not generated yet \u2014 re-run the v2 migration"}</span>
+              <CopyButton value={clientPortalUrl ?? "Not generated yet \u2014 re-run the v2 migration"} />
             </div>
           </Card>
 

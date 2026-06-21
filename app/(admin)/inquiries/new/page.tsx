@@ -4,6 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function NewInquiryPage({
   searchParams,
 }: {

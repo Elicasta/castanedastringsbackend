@@ -7,6 +7,9 @@ import { InvoiceActions } from "@/components/admin/invoice-actions";
 import { formatCents } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();

@@ -14,17 +14,22 @@ export function QuoteResponse({ publicId }: { publicId: string }) {
   async function respond(decision: "accepted" | "declined") {
     setBusy(decision);
     setError(null);
-    const res = await respondToQuotePublicAction(publicId, decision);
-    setBusy(null);
-    if (res.error) {
-      setError(res.error);
-      return;
+    try {
+      const res = await respondToQuotePublicAction(publicId, decision);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (decision === "declined") {
+        router.refresh();
+        return;
+      }
+      setResult({ invoicePublicId: res.invoicePublicId, contractPublicId: res.contractPublicId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(null);
     }
-    if (decision === "declined") {
-      router.refresh();
-      return;
-    }
-    setResult({ invoicePublicId: res.invoicePublicId, contractPublicId: res.contractPublicId });
   }
 
   if (result) {

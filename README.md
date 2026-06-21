@@ -81,3 +81,21 @@ lib/status.ts        # the only place status transitions are allowed/denied
 lib/email/           # Resend wrapper + plain-text templates
 supabase/migrations/ # schema, RLS, sequential numbering, past-due helper
 ```
+
+## Connecting your website's inquiry form (separate repo)
+
+The marketing site (castanedastrings.com) is a different codebase, so it can't call a server
+action directly. Instead it POSTs to a small public API route on this app:
+
+```
+POST https://admin.castanedastrings.com/api/public/inquiries
+Headers: x-api-key: <PUBLIC_INTAKE_API_KEY>
+Body (JSON): { name, email, phone?, event_type?, event_date?, location_name?, guest_count?, message? }
+```
+
+Set `PUBLIC_INTAKE_API_KEY` to a long random string in **this** app's env vars, and put the same
+value in the marketing site's env vars (never in client-side code — the call must happen from
+the marketing site's own server, e.g. inside its form's server action or API route).
+
+This creates the client + inquiry, logs activity, and fires an automatic "got your inquiry" email.
+It shows up in `/inquiries` immediately, status `new`.

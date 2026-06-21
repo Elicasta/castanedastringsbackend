@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generatePublicId } from "@/lib/ids";
 import { logActivity } from "@/lib/activity";
+import { logCommunication } from "@/lib/communications";
 import { markZellePaidSchema } from "@/lib/schemas";
 import { formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { canTransitionInvoice, InvalidTransitionError } from "@/lib/status";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
+import { invoiceUrl, portalUrl, adminInvoiceUrl } from "@/lib/urls";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -101,7 +103,7 @@ export async function sendInvoiceAction(invoiceId: string) {
   }
   if (!invoice.client?.email) return { error: "This client doesn't have an email on file yet." };
 
-  const invoiceLink = `${process.env.NEXT_PUBLIC_APP_URL}/i/${invoice.public_id}`;
+  const invoiceLink = invoiceUrl(invoice.public_id);
 
   const result = await sendTemplateEmail({
     to: invoice.client.email,
@@ -113,7 +115,7 @@ export async function sendInvoiceAction(invoiceId: string) {
       total: formatCents(invoice.total_cents, invoice.currency),
       due_date: formatDate(invoice.due_date),
       invoice_link: invoiceLink,
-      portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.client.portal_public_id}`,
+      portal_link: portalUrl(invoice.client.portal_public_id) ?? "",
       business_name: "Castaneda Strings",
     },
     client_id: invoice.client_id,
@@ -185,7 +187,7 @@ export async function markInvoicePaidZelleAction(input: unknown) {
         invoice_number: invoice.invoice_number ?? "",
         event_date: formatDate(invoice.due_date),
         business_name: "Castaneda Strings",
-        portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.client.portal_public_id}`,
+        portal_link: portalUrl(invoice.client.portal_public_id) ?? "",
       },
       client_id: invoice.client_id,
       invoice_id: invoice.id,
@@ -214,7 +216,7 @@ export async function sendPaymentReminderAction(invoiceId: string) {
       invoice_number: invoice.invoice_number ?? "",
       total: formatCents(invoice.balance_due_cents, invoice.currency),
       due_date: formatDate(invoice.due_date),
-      invoice_link: `${process.env.NEXT_PUBLIC_APP_URL}/i/${invoice.public_id}`,
+      invoice_link: invoiceUrl(invoice.public_id),
       business_name: "Castaneda Strings",
     },
     client_id: invoice.client_id,
@@ -255,8 +257,8 @@ export async function createInvoiceCheckoutSessionPublicAction(invoicePublicId: 
         quantity: 1,
       },
     ],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/i/${invoicePublicId}?paid=1`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/i/${invoicePublicId}`,
+    success_url: `${invoiceUrl(invoicePublicId)}?paid=1`,
+    cancel_url: invoiceUrl(invoicePublicId),
     metadata: { invoice_id: invoice.id, invoice_public_id: invoicePublicId },
   });
 
@@ -266,4 +268,53 @@ export async function createInvoiceCheckoutSessionPublicAction(invoicePublicId: 
     .eq("id", invoice.id);
 
   return { url: session.url };
+}
+
+/**
+ * PUBLIC action — the client clicks "I sent payment via Zelle" on the
+ * invoice page. This does NOT mark the invoice paid (we don't trust an
+ * unverified client claim for that) — it just notifies the admin so they
+ * can confirm it in their own Zelle activity and mark it paid from there.
+ */
+export async function notifyZellePaymentSentPublicAction(invoicePublicId: string) {
+  const supabase = createAdminClient();
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .select("*, client:clients(*)")
+    .eq("public_id", invoicePublicId)
+    .single();
+  if (error || !invoice) return { error: "Invoice not found." };
+
+  await logCommunication({
+    client_id: invoice.client_id,
+    invoice_id: invoice.id,
+    channel: "note",
+    direction: "inbound",
+    subject: "Client says they sent Zelle payment",
+    body: `${invoice.client?.full_name ?? "Client"} indicated they sent a Zelle payment for ${invoice.invoice_number}. Confirm in your Zelle activity, then mark this invoice paid.`,
+    status: "received",
+  });
+
+  await logActivity({
+    action: "zelle_claimed",
+    entity_type: "invoice",
+    entity_id: invoice.id,
+    description: `Client reported sending Zelle payment for ${invoice.invoice_number}`,
+  });
+
+  if (invoice.client?.email) {
+    await sendTemplateEmail({
+      to: process.env.RESEND_FROM_EMAIL!,
+      template: "zelle_payment_claimed_admin",
+      vars: {
+        client_name: invoice.client.full_name,
+        invoice_number: invoice.invoice_number ?? "",
+        total: formatCents(invoice.balance_due_cents, invoice.currency),
+        admin_link: adminInvoiceUrl(invoice.id),
+      },
+      invoice_id: invoice.id,
+    });
+  }
+
+  return { success: true };
 }

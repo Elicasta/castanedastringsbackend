@@ -6,6 +6,9 @@ import { AddNoteForm } from "@/components/admin/add-note-form";
 import { formatDateTime } from "@/lib/dates";
 import { MessageSquare, Mail, FileText, StickyNote } from "lucide-react";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 const CHANNEL_ICON = { email: Mail, note: StickyNote, system: FileText, phone: MessageSquare, text: MessageSquare };
 
 export default async function CommunicationsPage({

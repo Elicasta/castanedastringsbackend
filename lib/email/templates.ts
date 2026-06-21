@@ -18,9 +18,11 @@ Talk soon,
 
 Your quote for {{event_type}} on {{event_date}} is ready.
 
-View it and accept here: {{quote_link}}
+{{quote_link}}
 
-You can also see everything for your event — quotes, invoices, and contracts — in one place here: {{portal_link}}
+You can see everything for your event — quotes, invoices, and contracts — any time:
+
+{{portal_link}}
 
 Let me know if you'd like any changes.
 
@@ -30,7 +32,7 @@ Let me know if you'd like any changes.
     subject: "Quote accepted: {{quote_number}}",
     body: `{{client_name}} accepted quote {{quote_number}} ({{total}}).
 
-View it: {{admin_link}}`,
+{{admin_link}}`,
   },
   invoice_sent: {
     subject: "Your Invoice is Ready",
@@ -41,9 +43,11 @@ Your invoice for {{event_type}} on {{event_date}} is ready.
 Total due: {{total}}
 Due date: {{due_date}}
 
-Pay here: {{invoice_link}}
+{{invoice_link}}
 
-Everything for your event is also here: {{portal_link}}
+Everything for your event is also here:
+
+{{portal_link}}
 
 {{business_name}}`,
   },
@@ -53,7 +57,7 @@ Everything for your event is also here: {{portal_link}}
 
 Quick reminder that invoice {{invoice_number}} ({{total}}) is due {{due_date}}.
 
-Pay here: {{invoice_link}}
+{{invoice_link}}
 
 {{business_name}}`,
   },
@@ -65,7 +69,9 @@ Got your payment of {{amount}} for invoice {{invoice_number}}. You're all set, y
 
 Looking forward to {{event_date}}.
 
-Everything for your event is here any time: {{portal_link}}
+Everything for your event is here any time:
+
+{{portal_link}}
 
 {{business_name}}`,
   },
@@ -75,7 +81,7 @@ Everything for your event is here any time: {{portal_link}}
 
 Please review and sign the agreement for {{event_type}} on {{event_date}}.
 
-Sign here: {{contract_link}}
+{{contract_link}}
 
 {{business_name}}`,
   },
@@ -83,7 +89,23 @@ Sign here: {{contract_link}}
     subject: "Contract signed: {{contract_title}}",
     body: `{{client_name}} signed "{{contract_title}}" at {{signed_at}}.
 
-View it: {{admin_link}}`,
+{{admin_link}}`,
+  },
+  zelle_payment_claimed_admin: {
+    subject: "Client says they paid via Zelle — {{invoice_number}}",
+    body: `{{client_name}} says they sent a Zelle payment of {{total}} for invoice {{invoice_number}}.
+
+Check your Zelle activity, then mark it paid here:
+
+{{admin_link}}`,
+  },
+  inbound_reply_admin: {
+    subject: "New reply: {{subject}}",
+    body: `{{from_name}} replied:
+
+{{snippet}}
+
+Check Communications for the full message.`,
   },
 } as const;
 
@@ -99,15 +121,20 @@ export function renderTemplate(body: string, vars: Record<string, string>): stri
  * so it works even before a logo file is wired up.
  */
 export function brandedHtml(subject: string, plainBody: string): string {
-  const paragraphs = plainBody
-    .split("\n\n")
-    .map((block) =>
-      block
+  const blocks = plainBody.split("\n\n");
+  const rendered = blocks
+    .map((block) => {
+      const trimmed = block.trim();
+      // A block that's nothing but a URL becomes a real button, not plain text.
+      if (/^https?:\/\/\S+$/.test(trimmed)) {
+        return `<p style="margin:0 0 16px 0;"><a href="${trimmed}" style="display:inline-block;background:#0f6e5e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">View it →</a></p>`;
+      }
+      const withBreaks = block
         .split("\n")
         .map((line) => escapeHtml(line))
-        .join("<br/>")
-    )
-    .map((block) => `<p style="margin:0 0 16px 0;">${linkify(block)}</p>`)
+        .join("<br/>");
+      return `<p style="margin:0 0 16px 0;">${linkify(withBreaks)}</p>`;
+    })
     .join("");
 
   return `
@@ -121,7 +148,7 @@ export function brandedHtml(subject: string, plainBody: string): string {
     <tr>
       <td style="padding:28px;">
         <h1 style="margin:0 0 16px 0;font-size:20px;color:#14201d;">${escapeHtml(subject)}</h1>
-        <div style="font-size:15px;line-height:1.6;color:#14201d;">${paragraphs}</div>
+        <div style="font-size:15px;line-height:1.6;color:#14201d;">${rendered}</div>
       </td>
     </tr>
     <tr>

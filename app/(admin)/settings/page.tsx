@@ -7,6 +7,9 @@ import { Input, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage({
   searchParams,
 }: {

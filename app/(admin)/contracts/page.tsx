@@ -8,6 +8,9 @@ import { Card } from "@/components/ui/card";
 import { FileSignature } from "lucide-react";
 import Link from "next/link";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 const TABS = [
   { label: "All", value: "all" },
   { label: "Sent", value: "sent" },

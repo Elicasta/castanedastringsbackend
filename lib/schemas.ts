@@ -41,6 +41,7 @@ export const newQuoteSchema = z.object({
   discount_cents: z.coerce.number().int().min(0).default(0),
   tax_cents: z.coerce.number().int().min(0).default(0),
   items: z.array(lineItemSchema).min(1, "Add at least one line item"),
+  send: z.boolean().optional(),
 });
 
 export const newContractTemplateSchema = z.object({
@@ -59,6 +60,11 @@ export const signContractSchema = z.object({
   contract_public_id: z.string().min(1),
   signer_name: z.string().min(2, "Type your full legal name"),
   signer_email: z.string().email("Enter a valid email"),
+  signature_image: z
+    .string()
+    .startsWith("data:image/", "Invalid signature image")
+    .max(500_000, "Signature image is too large")
+    .optional(),
 });
 
 export const manualNoteSchema = z.object({

@@ -4,6 +4,7 @@ import { logActivity } from "@/lib/activity";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
+import { portalUrl } from "@/lib/urls";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
           invoice_number: invoice.invoice_number ?? "",
           event_date: formatDate(invoice.due_date),
           business_name: "Castaneda Strings",
-          portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.client.portal_public_id}`,
+          portal_link: portalUrl(invoice.client.portal_public_id) ?? "",
         },
         client_id: invoice.client_id,
         invoice_id: invoice.id,

@@ -5,7 +5,11 @@ import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ContractActions } from "@/components/admin/contract-actions";
 import { ContractDetailsEditor } from "@/components/admin/contract-details-editor";
+import { ContractBody } from "@/components/public/contract-body";
 import { formatDateTime } from "@/lib/dates";
+
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
 
 export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,13 +30,21 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         <div className="sm:col-span-2 space-y-4">
           <Card>
             <h2 className="font-semibold mb-3">Agreement text</h2>
-            <p className="text-sm whitespace-pre-wrap">{contract.body}</p>
+            <ContractBody body={contract.body} />
           </Card>
 
           {contract.status === "signed" && (
             <Card>
               <h2 className="font-semibold mb-3">Signature record</h2>
-              <p className="text-sm">Signed by <span className="font-medium">{contract.client_signature ?? contract.signer_name}</span></p>
+              {contract.signature_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={contract.signature_image} alt="Signature" className="h-16 object-contain mb-2" />
+              ) : (
+                <p className="text-lg italic mb-1" style={{ fontFamily: "Georgia, serif" }}>
+                  {contract.client_signature ?? contract.signer_name}
+                </p>
+              )}
+              <p className="text-sm">Signed by <span className="font-medium">{contract.signer_name}</span></p>
               <p className="text-sm text-muted">{contract.signer_email}</p>
               <p className="text-sm text-muted">{formatDateTime(contract.signed_at)}</p>
               <p className="text-xs text-muted mt-2">IP: {contract.signer_ip ?? "—"}</p>

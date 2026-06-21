@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Users } from "lucide-react";
 import Link from "next/link";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function ClientsPage({
   searchParams,
 }: {

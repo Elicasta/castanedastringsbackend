@@ -5,6 +5,9 @@ import { ButtonLink } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { Inbox, FileText, Receipt, FilePlus, FileSignature, AlertTriangle } from "lucide-react";
 
+// Admin tool reading live data — never serve a cached/stale version of this page.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const { counts, recentActivity, upcomingEvents } = await getDashboardData();
 
