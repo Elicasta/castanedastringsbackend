@@ -23,32 +23,49 @@ export function InvoiceActions({
   async function send() {
     setBusy(true);
     setError(null);
-    const result = await sendInvoiceAction(invoiceId);
-    setBusy(false);
-    if (result?.error) setError(result.error);
-    router.refresh();
+    try {
+      const result = await sendInvoiceAction(invoiceId);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong sending this invoice.");
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   async function remind() {
     setBusy(true);
-    await sendPaymentReminderAction(invoiceId);
-    setBusy(false);
-    router.refresh();
+    setError(null);
+    try {
+      const result = await sendPaymentReminderAction(invoiceId);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong sending the reminder.");
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   async function submitZelle(formData: FormData) {
     setBusy(true);
     setError(null);
-    const result = await markInvoicePaidZelleAction({
-      invoice_id: invoiceId,
-      amount_paid_cents: Math.round(parseFloat(String(formData.get("amount"))) * 100),
-      paid_at: formData.get("paid_at"),
-      zelle_reference: formData.get("reference"),
-    });
-    setBusy(false);
-    if (result?.error) setError(result.error);
-    else setShowZelleForm(false);
-    router.refresh();
+    try {
+      const result = await markInvoicePaidZelleAction({
+        invoice_id: invoiceId,
+        amount_paid_cents: Math.round(parseFloat(String(formData.get("amount"))) * 100),
+        paid_at: formData.get("paid_at"),
+        zelle_reference: formData.get("reference"),
+      });
+      if (result?.error) setError(result.error);
+      else setShowZelleForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong recording this payment.");
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   return (

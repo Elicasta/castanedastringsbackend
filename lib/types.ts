@@ -28,6 +28,7 @@ export interface Client {
   phone: string | null;
   instagram_handle: string | null;
   notes: string | null;
+  portal_public_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +63,24 @@ export interface QuoteItem {
   unit_price_cents: number;
   total_cents: number;
   sort_order: number;
+}
+
+export type QuoteTemplateCategory =
+  | "wedding" | "private_celebration" | "corporate" | "proposal" | "lessons";
+
+export interface QuoteTemplate {
+  id: string;
+  category: QuoteTemplateCategory;
+  name: string;
+  price_cents: number;
+  performance_time: string | null;
+  description: string | null;
+  includes: string | null;
+  recommended_for: string | null;
+  status: "active" | "archived";
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Quote {
@@ -159,6 +178,18 @@ export interface Contract {
   signer_ip: string | null;
   signer_user_agent: string | null;
   signature_text: string | null;
+  client_signature: string | null;
+  service_ceremony: boolean;
+  service_cocktail_hour: boolean;
+  service_reception: boolean;
+  service_proposal: boolean;
+  service_corporate: boolean;
+  service_custom_song: boolean;
+  deposit_amount_cents: number | null;
+  balance_due_cents: number | null;
+  planner_name: string | null;
+  planner_phone: string | null;
+  song_requests: string | null;
   pdf_url: string | null;
   created_at: string;
   updated_at: string;

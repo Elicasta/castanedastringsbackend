@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Protects everything except /login, public client pages, static assets, and API routes.
-const PUBLIC_PATHS = ["/login", "/q/", "/i/", "/c/", "/api/"];
+const PUBLIC_PATHS = ["/login", "/q/", "/i/", "/c/", "/portal/", "/api/"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

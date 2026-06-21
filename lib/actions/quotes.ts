@@ -103,6 +103,7 @@ export async function sendQuoteAction(quoteId: string) {
       event_type: quote.event_type ?? "your event",
       event_date: formatDate(quote.event_date),
       quote_link: quoteLink,
+      portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${quote.client.portal_public_id}`,
       business_name: "Castaneda Strings",
     },
     client_id: quote.client_id,

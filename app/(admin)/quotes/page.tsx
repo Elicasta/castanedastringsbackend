@@ -41,9 +41,14 @@ export default async function QuotesPage({
       <PageHeader
         title="Quotes"
         action={
-          <ButtonLink href="/quotes/new">
-            <Plus className="size-4" /> New
-          </ButtonLink>
+          <div className="flex gap-2">
+            <ButtonLink href="/quotes/templates" variant="secondary">
+              Templates
+            </ButtonLink>
+            <ButtonLink href="/quotes/new">
+              <Plus className="size-4" /> New
+            </ButtonLink>
+          </div>
         }
       />
       <div className="space-y-3 mb-4">

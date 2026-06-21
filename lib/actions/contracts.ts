@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generatePublicId } from "@/lib/ids";
 import { logActivity } from "@/lib/activity";
-import { newContractTemplateSchema, signContractSchema } from "@/lib/schemas";
+import { newContractTemplateSchema, signContractSchema, contractDetailsSchema } from "@/lib/schemas";
 import { formatCents } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email/resend";
@@ -190,6 +190,7 @@ export async function signContractPublicAction(input: unknown) {
       signer_name: data.signer_name,
       signer_email: data.signer_email,
       signature_text: data.signer_name,
+      client_signature: data.signer_name,
       signer_ip: ip,
       signer_user_agent: userAgent,
     })
@@ -215,5 +216,18 @@ export async function signContractPublicAction(input: unknown) {
   });
 
   revalidatePath(`/c/${data.contract_public_id}`);
+  return { success: true };
+}
+
+export async function updateContractDetailsAction(input: unknown) {
+  const parsed = contractDetailsSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const { contract_id, ...rest } = parsed.data;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("contracts").update(rest).eq("id", contract_id);
+  if (error) return { error: "Couldn't save contract details." };
+
+  revalidatePath(`/contracts/${contract_id}`);
   return { success: true };
 }

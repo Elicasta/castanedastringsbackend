@@ -14,10 +14,15 @@ export function QuoteActions({ quoteId, status }: { quoteId: string; status: str
   async function send() {
     setSending(true);
     setError(null);
-    const result = await sendQuoteAction(quoteId);
-    setSending(false);
-    if (result?.error) setError(result.error);
-    router.refresh();
+    try {
+      const result = await sendQuoteAction(quoteId);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong sending this quote.");
+    } finally {
+      setSending(false);
+      router.refresh();
+    }
   }
 
   return (

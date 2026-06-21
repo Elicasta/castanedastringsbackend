@@ -10,16 +10,24 @@ import type { InquiryStatus } from "@/lib/types";
 export function InquiryActions({ inquiryId, status }: { inquiryId: string; status: InquiryStatus }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function move(to: InquiryStatus) {
     setPending(true);
-    await updateInquiryStatusAction(inquiryId, status, to);
-    setPending(false);
-    router.refresh();
+    setError(null);
+    try {
+      await updateInquiryStatusAction(inquiryId, status, to);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong updating this inquiry.");
+    } finally {
+      setPending(false);
+      router.refresh();
+    }
   }
 
   return (
     <div className="flex flex-wrap gap-2">
+      {error && <p className="text-sm text-rose-600 bg-rose-50 rounded-xl p-3 w-full">{error}</p>}
       {status === "new" && (
         <Button disabled={pending} onClick={() => move("awaiting_response")} variant="secondary">
           Mark awaiting response

@@ -77,7 +77,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
         <div className="space-y-4">
           <Card>
             <h2 className="font-semibold mb-3">Client</h2>
-            <p className="text-sm font-medium">{quote.client?.full_name}</p>
+            <a href={`/clients/${quote.client_id}`} className="text-sm font-medium hover:text-brand">{quote.client?.full_name}</a>
             <p className="text-sm text-muted">{quote.client?.email ?? "No email"}</p>
           </Card>
           <Card>

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { EMAIL_TEMPLATES, renderTemplate, type EmailTemplateKey } from "./templates";
+import { EMAIL_TEMPLATES, renderTemplate, brandedHtml, type EmailTemplateKey } from "./templates";
 import { logCommunication } from "../communications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -31,6 +31,7 @@ export async function sendTemplateEmail(params: SendTemplateEmailParams) {
       to: params.to,
       subject,
       text: body,
+      html: brandedHtml(subject, body),
     });
 
     if (error) throw new Error(error.message);

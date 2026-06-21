@@ -59,7 +59,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <div className="space-y-4">
           <Card>
             <h2 className="font-semibold mb-3">Client</h2>
-            <p className="text-sm font-medium">{invoice.client?.full_name}</p>
+            <a href={`/clients/${invoice.client_id}`} className="text-sm font-medium hover:text-brand">{invoice.client?.full_name}</a>
             <p className="text-sm text-muted">{invoice.client?.email ?? "No email"}</p>
           </Card>
           <Card>

@@ -20,6 +20,7 @@ export function ConfirmDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
@@ -29,6 +30,7 @@ export function ConfirmDialog({
           <div className="w-full max-w-sm rounded-2xl bg-white p-5">
             <h3 className="font-semibold text-lg">{title}</h3>
             {description && <p className="text-sm text-muted mt-1.5">{description}</p>}
+            {error && <p className="text-sm text-rose-600 bg-rose-50 rounded-xl p-3 mt-3">{error}</p>}
             <div className="flex gap-2 mt-5">
               <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
                 Cancel
@@ -39,9 +41,15 @@ export function ConfirmDialog({
                 disabled={loading}
                 onClick={async () => {
                   setLoading(true);
-                  await onConfirm();
-                  setLoading(false);
-                  setOpen(false);
+                  setError(null);
+                  try {
+                    await onConfirm();
+                    setOpen(false);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Something went wrong.");
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               >
                 {loading ? "Working…" : confirmLabel}

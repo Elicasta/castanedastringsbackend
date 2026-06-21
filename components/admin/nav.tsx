@@ -11,6 +11,7 @@ import {
   FileSignature,
   MessageSquare,
   Settings,
+  Users,
   MoreHorizontal,
 } from "lucide-react";
 import { useState } from "react";
@@ -21,6 +22,7 @@ const SIDEBAR_LINKS = [
   { href: "/quotes", label: "Quotes", icon: FileText },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/contracts", label: "Contracts", icon: FileSignature },
+  { href: "/clients", label: "Clients", icon: Users },
   { href: "/communications", label: "Communications", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -35,6 +37,7 @@ const BOTTOM_LINKS = [
 const MORE_LINKS = [
   { href: "/contracts", label: "Contracts", icon: FileSignature },
   { href: "/contracts/templates", label: "Contract Templates", icon: FileSignature },
+  { href: "/clients", label: "Clients", icon: Users },
   { href: "/communications", label: "Communications", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

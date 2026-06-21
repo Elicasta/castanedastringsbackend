@@ -91,3 +91,28 @@ export const publicInquiryIntakeSchema = z.object({
   message: z.string().optional(),
   source: z.string().optional(),
 });
+
+export const updateQuoteTemplateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1, "Name is required"),
+  price_cents: z.coerce.number().int().min(0),
+  performance_time: z.string().optional(),
+  description: z.string().optional(),
+  includes: z.string().optional(),
+  recommended_for: z.string().optional(),
+});
+
+export const contractDetailsSchema = z.object({
+  contract_id: z.string().uuid(),
+  service_ceremony: z.boolean().default(false),
+  service_cocktail_hour: z.boolean().default(false),
+  service_reception: z.boolean().default(false),
+  service_proposal: z.boolean().default(false),
+  service_corporate: z.boolean().default(false),
+  service_custom_song: z.boolean().default(false),
+  deposit_amount_cents: z.coerce.number().int().min(0).optional(),
+  balance_due_cents: z.coerce.number().int().min(0).optional(),
+  planner_name: z.string().optional(),
+  planner_phone: z.string().optional(),
+  song_requests: z.string().optional(),
+});

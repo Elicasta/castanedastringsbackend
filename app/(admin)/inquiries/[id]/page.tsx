@@ -87,7 +87,7 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
         <div className="space-y-4">
           <Card>
             <h2 className="font-semibold mb-3">Client</h2>
-            <p className="text-sm font-medium">{inquiry.client?.full_name}</p>
+            <a href={`/clients/${inquiry.client_id}`} className="text-sm font-medium hover:text-brand">{inquiry.client?.full_name}</a>
             <p className="text-sm text-muted">{inquiry.client?.email ?? "No email"}</p>
             <p className="text-sm text-muted">{inquiry.client?.phone ?? "No phone"}</p>
           </Card>

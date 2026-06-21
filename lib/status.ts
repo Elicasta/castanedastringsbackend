@@ -13,7 +13,7 @@ export const INQUIRY_TRANSITIONS: Record<InquiryStatus, InquiryStatus[]> = {
 };
 
 export const QUOTE_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
-  draft: ["sent", "cancelled"],
+  draft: ["sent", "pending", "cancelled"],
   sent: ["pending", "cancelled"],
   pending: ["accepted", "declined", "cancelled", "expired"],
   accepted: [],
@@ -23,8 +23,8 @@ export const QUOTE_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
 };
 
 export const INVOICE_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
-  draft: ["sent", "cancelled"],
-  sent: ["payment_pending", "past_due", "cancelled"],
+  draft: ["sent", "payment_pending", "cancelled"],
+  sent: ["payment_pending", "past_due", "paid", "cancelled"],
   payment_pending: ["paid", "past_due", "cancelled"],
   past_due: ["paid", "cancelled"],
   paid: ["refunded"],
@@ -33,7 +33,7 @@ export const INVOICE_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
 };
 
 export const CONTRACT_TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
-  draft: ["sent", "cancelled"],
+  draft: ["sent", "pending", "cancelled"],
   sent: ["pending", "cancelled"],
   pending: ["signed", "cancelled"],
   signed: [],

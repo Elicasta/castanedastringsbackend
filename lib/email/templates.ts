@@ -13,12 +13,14 @@ Talk soon,
 {{business_name}}`,
   },
   quote_sent: {
-    subject: "Your quote from {{business_name}}",
+    subject: "Your Quote is Ready",
     body: `Hi {{client_first_name}},
 
-Here's your quote for {{event_type}} on {{event_date}}.
+Your quote for {{event_type}} on {{event_date}} is ready.
 
 View it and accept here: {{quote_link}}
+
+You can also see everything for your event — quotes, invoices, and contracts — in one place here: {{portal_link}}
 
 Let me know if you'd like any changes.
 
@@ -31,15 +33,17 @@ Let me know if you'd like any changes.
 View it: {{admin_link}}`,
   },
   invoice_sent: {
-    subject: "Invoice {{invoice_number}} from {{business_name}}",
+    subject: "Your Invoice is Ready",
     body: `Hi {{client_first_name}},
 
-Here's your invoice for {{event_type}} on {{event_date}}.
+Your invoice for {{event_type}} on {{event_date}} is ready.
 
 Total due: {{total}}
 Due date: {{due_date}}
 
 Pay here: {{invoice_link}}
+
+Everything for your event is also here: {{portal_link}}
 
 {{business_name}}`,
   },
@@ -54,12 +58,14 @@ Pay here: {{invoice_link}}
 {{business_name}}`,
   },
   payment_received: {
-    subject: "Payment received — thank you",
+    subject: "Your Date is Confirmed!",
     body: `Hi {{client_first_name}},
 
-Got your payment of {{amount}} for invoice {{invoice_number}}. You're all set.
+Got your payment of {{amount}} for invoice {{invoice_number}}. You're all set, your date is officially confirmed.
 
 Looking forward to {{event_date}}.
+
+Everything for your event is here any time: {{portal_link}}
 
 {{business_name}}`,
   },
@@ -85,4 +91,58 @@ export type EmailTemplateKey = keyof typeof EMAIL_TEMPLATES;
 
 export function renderTemplate(body: string, vars: Record<string, string>): string {
   return body.replace(/{{(\w+)}}/g, (_, key) => vars[key] ?? "");
+}
+
+/**
+ * Wraps plain-text email body in a simple branded HTML shell — teal accent,
+ * cream/white card, matching the admin app's look. No image assets required,
+ * so it works even before a logo file is wired up.
+ */
+export function brandedHtml(subject: string, plainBody: string): string {
+  const paragraphs = plainBody
+    .split("\n\n")
+    .map((block) =>
+      block
+        .split("\n")
+        .map((line) => escapeHtml(line))
+        .join("<br/>")
+    )
+    .map((block) => `<p style="margin:0 0 16px 0;">${linkify(block)}</p>`)
+    .join("");
+
+  return `
+<div style="background:#f8f7f4;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e7e9e8;">
+    <tr>
+      <td style="background:#0f6e5e;padding:24px 28px;">
+        <p style="margin:0;color:#ffffff;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">Castaneda Strings</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px;">
+        <h1 style="margin:0 0 16px 0;font-size:20px;color:#14201d;">${escapeHtml(subject)}</h1>
+        <div style="font-size:15px;line-height:1.6;color:#14201d;">${paragraphs}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 24px 28px;border-top:1px solid #e7e9e8;">
+        <p style="margin:0;font-size:12px;color:#6b7670;">Castaneda Strings · Live violin for weddings &amp; events</p>
+      </td>
+    </tr>
+  </table>
+</div>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function linkify(text: string): string {
+  return text.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    (url) => `<a href="${url}" style="color:#0f6e5e;">${url}</a>`
+  );
 }

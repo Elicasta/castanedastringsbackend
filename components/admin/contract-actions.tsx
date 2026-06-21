@@ -13,10 +13,15 @@ export function ContractActions({ contractId, status }: { contractId: string; st
   async function send() {
     setBusy(true);
     setError(null);
-    const result = await sendContractAction(contractId);
-    setBusy(false);
-    if (result?.error) setError(result.error);
-    router.refresh();
+    try {
+      const result = await sendContractAction(contractId);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong sending this contract.");
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   if (status !== "draft" && status !== "sent") return null;

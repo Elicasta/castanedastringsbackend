@@ -5,8 +5,9 @@ import { Input, Label, Textarea, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { createQuoteAction } from "@/lib/actions/quotes";
 import { formatCents, dollarsToCents, sumLineItems } from "@/lib/currency";
-import { Plus, Trash2 } from "lucide-react";
-import type { Client } from "@/lib/types";
+import { Plus, Trash2, ChevronDown } from "lucide-react";
+import type { Client, QuoteTemplate, QuoteTemplateCategory } from "@/lib/types";
+import { cn } from "@/lib/cn";
 
 interface LineItem {
   name: string;
@@ -15,8 +16,17 @@ interface LineItem {
   unit_price_dollars: string;
 }
 
+const CATEGORY_LABELS: Record<QuoteTemplateCategory, string> = {
+  wedding: "Wedding Collections",
+  private_celebration: "Private Celebrations",
+  corporate: "Corporate & Brand",
+  proposal: "Proposals",
+  lessons: "Lessons",
+};
+
 export function QuoteForm({
   clients,
+  templates,
   defaultClientId,
   defaultInquiryId,
   defaultEventType,
@@ -24,6 +34,7 @@ export function QuoteForm({
   defaultLocation,
 }: {
   clients: Client[];
+  templates: QuoteTemplate[];
   defaultClientId?: string;
   defaultInquiryId?: string;
   defaultEventType?: string | null;
@@ -32,11 +43,15 @@ export function QuoteForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("Performance Quote");
+  const [notesToClient, setNotesToClient] = useState("");
   const [items, setItems] = useState<LineItem[]>([
     { name: "", description: "", quantity: "1", unit_price_dollars: "" },
   ]);
   const [discount, setDiscount] = useState("0");
   const [tax, setTax] = useState("0");
+  const [pickerOpen, setPickerOpen] = useState(templates.length > 0);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   const subtotal = sumLineItems(
     items.map((i) => ({
@@ -50,18 +65,35 @@ export function QuoteForm({
     setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, ...patch } : item)));
   }
 
+  function applyTemplate(t: QuoteTemplate) {
+    setSelectedTemplateId(t.id);
+    setTitle(t.name);
+    setItems([
+      {
+        name: t.name,
+        description: [t.performance_time, t.description].filter(Boolean).join(" — "),
+        quantity: "1",
+        unit_price_dollars: (t.price_cents / 100).toFixed(2),
+      },
+    ]);
+    if (t.includes) {
+      setNotesToClient(`Includes:\n${t.includes}`);
+    }
+    setPickerOpen(false);
+  }
+
   async function handleSubmit(formData: FormData) {
     setSaving(true);
     setError(null);
     const payload = {
       client_id: formData.get("client_id"),
       inquiry_id: defaultInquiryId || null,
-      title: formData.get("title"),
+      title,
       event_type: formData.get("event_type"),
       event_date: formData.get("event_date"),
       location_name: formData.get("location_name"),
       valid_until: formData.get("valid_until"),
-      notes_to_client: formData.get("notes_to_client"),
+      notes_to_client: notesToClient,
       internal_notes: formData.get("internal_notes"),
       discount_cents: dollarsToCents(discount),
       tax_cents: dollarsToCents(tax),
@@ -79,9 +111,69 @@ export function QuoteForm({
     if (result?.error) setError(result.error);
   }
 
+  const grouped = templates.reduce<Record<string, QuoteTemplate[]>>((acc, t) => {
+    (acc[t.category] ??= []).push(t);
+    return acc;
+  }, {});
+
   return (
     <form action={handleSubmit} className="space-y-5">
       {error && <p className="text-sm text-rose-600 bg-rose-50 rounded-xl p-3">{error}</p>}
+
+      {templates.length > 0 && (
+        <div className="rounded-xl border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-slate-50"
+          >
+            <span className="text-sm font-medium">
+              {selectedTemplateId
+                ? `Using: ${templates.find((t) => t.id === selectedTemplateId)?.name}`
+                : "Start from a template (optional)"}
+            </span>
+            <ChevronDown className={cn("size-4 transition-transform", pickerOpen && "rotate-180")} />
+          </button>
+          {pickerOpen && (
+            <div className="p-4 space-y-5 max-h-96 overflow-y-auto">
+              {(Object.keys(CATEGORY_LABELS) as QuoteTemplateCategory[]).map((category) => {
+                const list = grouped[category];
+                if (!list?.length) return null;
+                return (
+                  <div key={category}>
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      {CATEGORY_LABELS[category]}
+                    </p>
+                    <div className="space-y-2">
+                      {list.map((t) => (
+                        <button
+                          type="button"
+                          key={t.id}
+                          onClick={() => applyTemplate(t)}
+                          className={cn(
+                            "w-full text-left rounded-xl border p-3 hover:border-brand transition-colors",
+                            selectedTemplateId === t.id ? "border-brand bg-brand-light" : "border-border"
+                          )}
+                        >
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-sm">{t.name}</span>
+                            <span className="text-sm font-semibold whitespace-nowrap">
+                              {formatCents(t.price_cents)}
+                            </span>
+                          </div>
+                          {t.performance_time && (
+                            <p className="text-xs text-muted mt-0.5">{t.performance_time}</p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <Label htmlFor="client_id">Client</Label>
@@ -95,7 +187,7 @@ export function QuoteForm({
 
       <div>
         <Label htmlFor="title">Quote title</Label>
-        <Input id="title" name="title" defaultValue="Performance Quote" required />
+        <Input id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -205,7 +297,13 @@ export function QuoteForm({
 
       <div>
         <Label htmlFor="notes_to_client">Notes to client</Label>
-        <Textarea id="notes_to_client" name="notes_to_client" rows={2} />
+        <Textarea
+          id="notes_to_client"
+          name="notes_to_client"
+          rows={4}
+          value={notesToClient}
+          onChange={(e) => setNotesToClient(e.target.value)}
+        />
       </div>
       <div>
         <Label htmlFor="internal_notes">Internal notes</Label>

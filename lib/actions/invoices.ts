@@ -96,8 +96,8 @@ export async function sendInvoiceAction(invoiceId: string) {
     .single();
   if (error || !invoice) throw new Error("Invoice not found");
 
-  if (!canTransitionInvoice(invoice.status, "sent")) {
-    throw new InvalidTransitionError("invoice", invoice.status, "sent");
+  if (!canTransitionInvoice(invoice.status, "payment_pending")) {
+    throw new InvalidTransitionError("invoice", invoice.status, "payment_pending");
   }
   if (!invoice.client?.email) return { error: "This client doesn't have an email on file yet." };
 
@@ -113,6 +113,7 @@ export async function sendInvoiceAction(invoiceId: string) {
       total: formatCents(invoice.total_cents, invoice.currency),
       due_date: formatDate(invoice.due_date),
       invoice_link: invoiceLink,
+      portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.client.portal_public_id}`,
       business_name: "Castaneda Strings",
     },
     client_id: invoice.client_id,
@@ -184,6 +185,7 @@ export async function markInvoicePaidZelleAction(input: unknown) {
         invoice_number: invoice.invoice_number ?? "",
         event_date: formatDate(invoice.due_date),
         business_name: "Castaneda Strings",
+        portal_link: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.client.portal_public_id}`,
       },
       client_id: invoice.client_id,
       invoice_id: invoice.id,
