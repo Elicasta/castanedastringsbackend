@@ -76,3 +76,18 @@ export const settingsSchema = z.object({
   zelle_phone: z.string().optional(),
   default_invoice_due_days: z.coerce.number().int().positive().default(7),
 });
+
+// Used by the PUBLIC intake endpoint (/api/public/inquiries), called from the
+// separate marketing site's inquiry form. Deliberately looser/simpler than the
+// admin-side newInquirySchema since we don't control the form's exact fields.
+export const publicInquiryIntakeSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("A valid email is required"),
+  phone: z.string().optional(),
+  event_type: z.string().optional(),
+  event_date: z.string().optional(),
+  location_name: z.string().optional(),
+  guest_count: z.coerce.number().int().positive().optional(),
+  message: z.string().optional(),
+  source: z.string().optional(),
+});
