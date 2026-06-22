@@ -1,0 +1,10 @@
+project_id = "eccs-booking-os"
+
+[db]
+major_version = 15
+
+[api]
+enabled = true
+
+[studio]
+enabled = true

@@ -1,35 +1,319 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Cormorant:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #14201d;
-  --brand: #0f6e5e;
-  --brand-dark: #0a4d41;
-  --brand-light: #e6f4f1;
-  --surface: #ffffff;
-  --border: #e7e9e8;
-  --muted: #6b7670;
+  --cream: #f5ede0;
+  --cream-deep: #ede0cc;
+  --cream-mist: #faf5ee;
+  --sand: #c8b49a;
+  --sand-light: #e0d4c3;
+  --linen: #e8ddd0;
+  --stone: #8a7968;
+  --stone-light: #b5a898;
+  --stone-dark: #6b5f50;
+  --ivory: #f8f4ef;
+  --matte-black: #1a1714;
+  --matte-dark: #2d2926;
+  --matte-mid: #4a4540;
+  --transition-slow: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-med:  0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.25s ease;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-brand: var(--brand);
-  --color-brand-dark: var(--brand-dark);
-  --color-brand-light: var(--brand-light);
-  --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Admin app is light-only by design — keeps status pill colors legible. */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background-color: var(--cream);
+  color: var(--matte-black);
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+  line-height: 1.6;
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+/* ── Grain overlay ── */
+.grain-overlay {
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  animation: grain 10s steps(10) infinite;
+  z-index: 9999;
+}
+
+@keyframes grain {
+  0%,100% { transform:translate(0,0) scale(1.02); }
+  10% { transform:translate(-2%,-3%) scale(1.02); }
+  20% { transform:translate(3%,2%) scale(1.02); }
+  30% { transform:translate(-1%,4%) scale(1.02); }
+  40% { transform:translate(4%,-1%) scale(1.02); }
+  50% { transform:translate(-3%,3%) scale(1.02); }
+  60% { transform:translate(2%,-4%) scale(1.02); }
+  70% { transform:translate(-4%,1%) scale(1.02); }
+  80% { transform:translate(1%,3%) scale(1.02); }
+  90% { transform:translate(3%,-2%) scale(1.02); }
+}
+
+/* ── Section atmospheres ── */
+.section-feeling {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 40%, rgba(240,218,192,0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 80% at 85% 15%, rgba(248,236,218,0.35) 0%, transparent 60%),
+    var(--cream);
+}
+.section-visual {
+  background:
+    radial-gradient(ellipse 70% 50% at 80% 65%, rgba(195,175,148,0.38) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 70% at 15% 75%, rgba(228,218,205,0.42) 0%, transparent 60%),
+    var(--cream);
+}
+.section-styling {
+  background:
+    radial-gradient(ellipse 90% 50% at 50% 30%, rgba(212,202,188,0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 92% 85%, rgba(195,175,148,0.28) 0%, transparent 55%),
+    var(--cream);
+}
+.section-story {
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 55%, rgba(130,114,98,0.1) 0%, transparent 75%),
+    var(--cream);
+}
+.section-final {
+  background: linear-gradient(175deg, var(--cream) 0%, rgba(237,224,204,0.8) 100%);
+}
+
+/* ── Typography ── */
+.display-text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 300;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+.accent-text {
+  font-family: 'Cormorant', Georgia, serif;
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.4;
+}
+.label-text {
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: var(--stone-light);
+}
+.body-text {
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 300;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: var(--stone);
+}
+
+/* ── Vision card — elevated ── */
+.vision-card {
+  border: 1px solid rgba(138,121,104,0.18);
+  transition: border-color var(--transition-med), transform var(--transition-med), box-shadow var(--transition-med), background var(--transition-med);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: rgba(250,245,238,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Subtle texture layer on each card */
+.vision-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(145deg,
+    rgba(255,252,248,0.4) 0%,
+    transparent 50%,
+    rgba(200,180,154,0.06) 100%
+  );
+  pointer-events: none;
+  transition: opacity var(--transition-med);
+}
+
+.vision-card:hover {
+  border-color: rgba(138,121,104,0.38);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 48px rgba(26,23,20,0.08), 0 2px 8px rgba(26,23,20,0.04);
+  background: rgba(252,248,243,0.7);
+}
+
+.vision-card.selected {
+  border-color: var(--stone-dark);
+  background: rgba(200,180,154,0.14);
+  box-shadow:
+    0 0 0 1px rgba(107,95,80,0.4),
+    0 12px 40px rgba(26,23,20,0.1),
+    inset 0 0 24px rgba(200,180,154,0.08);
+  transform: translateY(-1px);
+}
+
+/* Selected inner glow */
+.vision-card.selected::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 30%, rgba(232,218,200,0.3) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ── Pill tag — refined ── */
+.pill-tag {
+  border: 1px solid rgba(138,121,104,0.2);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0.04em;
+  background: rgba(250,245,238,0.4);
+}
+.pill-tag:hover {
+  border-color: rgba(138,121,104,0.5);
+  background: rgba(200,180,154,0.1);
+  transform: translateY(-1px);
+}
+.pill-tag.selected {
+  border-color: var(--stone-dark);
+  background: rgba(138,121,104,0.12);
+  color: var(--matte-dark);
+  box-shadow: 0 2px 12px rgba(26,23,20,0.06);
+}
+
+/* ── Inputs ── */
+.ec-input {
+  background: rgba(248,244,239,0.7);
+  border: 1px solid rgba(138,121,104,0.2);
+  color: var(--matte-black);
+  transition: all var(--transition-fast);
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 300;
+  font-size: 0.9rem;
+}
+.ec-input:focus {
+  outline: none;
+  border-color: var(--stone);
+  background: rgba(248,244,239,0.95);
+  box-shadow: 0 0 0 3px rgba(138,121,104,0.06), 0 4px 20px rgba(26,23,20,0.05);
+}
+.ec-input::placeholder {
+  color: var(--stone-light);
+  font-style: italic;
+  font-weight: 300;
+}
+.ec-textarea {
+  resize: none;
+  line-height: 1.8;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  background: var(--matte-dark);
+  color: var(--cream);
+  letter-spacing: 0.22em;
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  transition: background var(--transition-med), letter-spacing var(--transition-med), box-shadow var(--transition-med);
+  border: 1px solid var(--matte-dark);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--matte-black);
+  letter-spacing: 0.28em;
+  box-shadow: 0 10px 36px rgba(26,23,20,0.2);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--stone);
+  letter-spacing: 0.2em;
+  font-family: 'Jost', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  transition: all var(--transition-fast);
+  border: 1px solid rgba(138,121,104,0.3);
+}
+.btn-secondary:hover { border-color: var(--stone); color: var(--matte-dark); }
+
+/* ── Progress bar ── */
+.progress-track { background: rgba(138,121,104,0.1); }
+.progress-fill {
+  background: linear-gradient(90deg, var(--stone-dark) 0%, var(--stone) 60%, var(--sand) 100%);
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Drop zone — editorial ── */
+.drop-zone {
+  border: 1px solid rgba(138,121,104,0.25);
+  transition: all var(--transition-med);
+  cursor: pointer;
+  background: rgba(250,245,238,0.3);
+}
+.drop-zone:hover {
+  border-color: rgba(138,121,104,0.5);
+  background: rgba(200,180,154,0.07);
+  box-shadow: inset 0 0 32px rgba(200,180,154,0.05);
+}
+
+/* ── Section divider ── */
+.section-divider {
+  width: 32px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--stone), transparent);
+  flex-shrink: 0;
+}
+
+/* ── Interstitial ── */
+.interstitial {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Cinematic text interrupt ── */
+.cinematic-quote {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--matte-dark);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(138,121,104,0.3); border-radius: 1px; }
+
+/* ── Selection ── */
+::selection { background: rgba(200,180,154,0.28); color: var(--matte-black); }
+
+/* ── Ambient blob ── */
+.ambient-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(70px);
+}
