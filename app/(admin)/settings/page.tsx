@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
+import Link from "next/link";
 
 // Admin tool reading live data — never serve a cached/stale version of this page.
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export default async function SettingsPage({
       {error && <p className="text-sm text-rose-600 bg-rose-50 rounded-xl p-3 mb-4 max-w-xl">{error}</p>}
       {saved && <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl p-3 mb-4 max-w-xl">Settings saved.</p>}
 
+      <div className="flex flex-wrap gap-3 mb-5"><Link href="/settings/payments" className="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold">Payment settings</Link><Link href="/settings/email-templates" className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">Email templates</Link><Link href="/contracts/templates" className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">Agreements</Link></div>
       <div className="space-y-4 max-w-xl">
         <Card>
           <h2 className="font-semibold mb-3">Business info</h2>
@@ -45,20 +47,6 @@ export default async function SettingsPage({
             <div>
               <Label htmlFor="business_address">Business address</Label>
               <Input id="business_address" name="business_address" defaultValue={settings?.business_address ?? ""} />
-            </div>
-
-            <h2 className="font-semibold pt-2">Zelle</h2>
-            <div>
-              <Label htmlFor="zelle_name">Zelle name</Label>
-              <Input id="zelle_name" name="zelle_name" defaultValue={settings?.zelle_name ?? ""} />
-            </div>
-            <div>
-              <Label htmlFor="zelle_email">Zelle email</Label>
-              <Input id="zelle_email" name="zelle_email" defaultValue={settings?.zelle_email ?? ""} />
-            </div>
-            <div>
-              <Label htmlFor="zelle_phone">Zelle phone</Label>
-              <Input id="zelle_phone" name="zelle_phone" defaultValue={settings?.zelle_phone ?? ""} />
             </div>
 
             <h2 className="font-semibold pt-2">Invoicing</h2>
