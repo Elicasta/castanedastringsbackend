@@ -61,6 +61,7 @@ export async function sendComposedQuoteAction(input: unknown) {
       },
       body: JSON.stringify({
         from, to: [recipient], ...(cc ? { bcc: [cc] } : {}),
+        ...(process.env.RESEND_INBOUND_EMAIL?{reply_to:process.env.RESEND_INBOUND_EMAIL}:{}),
         subject, text: fullBody, html: brandedHtml(subject, fullBody),
       }),
     });
