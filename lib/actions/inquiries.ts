@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { generatePublicId } from "@/lib/ids";
 import { logActivity } from "@/lib/activity";
+import {logCommunication} from "@/lib/communications";
 import { newInquirySchema } from "@/lib/schemas";
 import { canTransitionInquiry, InvalidTransitionError } from "@/lib/status";
 import type { InquiryStatus } from "@/lib/types";
@@ -74,6 +75,14 @@ export async function createInquiryAction(formData: FormData) {
     description: `Inquiry created for ${data.first_name} ${data.last_name}`,
   });
 
+  if(data.message||data.email){
+    await logCommunication({
+      client_id:clientId,inquiry_id:inquiry.id,channel:"email",direction:"inbound",
+      subject:`New inquiry: ${data.event_type||"Performance"}`,body:data.message||"Manually entered inquiry",
+      status:"received"
+    }).catch(err=>console.error("Inquiry communication sync failed",err));
+  }
+  revalidatePath("/communications");
   revalidatePath("/inquiries");
   redirect(`/inquiries/${inquiry.id}`);
 }
