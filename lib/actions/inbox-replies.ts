@@ -46,6 +46,7 @@ export async function sendInboxReplyAction(input:unknown){
    headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json","Idempotency-Key":a.requestId},
    body:JSON.stringify({
      from,to:[to],subject:a.subject,text:a.body,html:brandedHtml(a.subject,a.body),
+     ...(process.env.RESEND_INBOUND_EMAIL?{reply_to:process.env.RESEND_INBOUND_EMAIL}:{}),
      ...(messageHeader?{headers:{"In-Reply-To":messageHeader}}:{})
    })
   });
