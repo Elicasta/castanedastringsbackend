@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { BookingConfirm } from "@/components/admin/booking-confirm";
 import { ReviseSentQuoteButton } from "@/components/admin/revise-sent-quote-button";
-import { Pencil, Lock } from "lucide-react";
+import { Pencil, Lock, MessageSquare } from "lucide-react";
 import { canConfirmBooking } from "@/lib/booking-rules";
 import { QuoteActions } from "@/components/admin/quote-actions";
 import { formatCents } from "@/lib/currency";
@@ -98,6 +98,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             <h2 className="font-semibold mb-3">Client</h2>
             <a href={`/clients/${quote.client_id}`} className="text-sm font-medium hover:text-brand">{quote.client?.full_name}</a>
             <p className="text-sm text-muted">{quote.client?.email ?? "No email"}</p>
+            {quote.client_id&&<Link href={`/communications/client/${quote.client_id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#087b68]"><MessageSquare size={15}/> Open conversation</Link>}
           </Card>
           <Card>
             <h2 className="font-semibold mb-3">Event</h2>
