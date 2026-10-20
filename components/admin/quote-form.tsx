@@ -21,8 +21,8 @@ const CARD = "bg-white rounded-xl border border-neutral-100 overflow-hidden";
 const ACCENT = "text-[#009f87]";
 const CATEGORY_NAMES:Record<string,string>={wedding:"Wedding",private_celebration:"Private Celebrations",corporate:"Corporate & Brand",proposal:"Proposals",lessons:"Lessons"};
 
-export function QuoteForm({clients,templates,projects=[],defaultClientId,defaultInquiryId,defaultEventType,defaultEventDate,defaultLocation,existingQuote}:{
- clients:Client[];templates:QuoteTemplate[];projects?:Project[];defaultClientId?:string;defaultInquiryId?:string;defaultEventType?:string|null;defaultEventDate?:string|null;defaultLocation?:string|null;existingQuote?:ExistingQuote;
+export function QuoteForm({clients,templates,projects=[],defaultClientId,defaultInquiryId,defaultEventType,defaultEventDate,defaultLocation,existingQuote,demo=false}:{
+ clients:Client[];templates:QuoteTemplate[];projects?:Project[];defaultClientId?:string;defaultInquiryId?:string;defaultEventType?:string|null;defaultEventDate?:string|null;defaultLocation?:string|null;existingQuote?:ExistingQuote;demo?:boolean;
 }) {
  const router=useRouter();
  const [step,setStep]=useState(existingQuote?3:defaultClientId?1:0);
@@ -39,6 +39,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
  const [projectName,setProjectName]=useState("");
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState<string|null>(null);
+ const [demoResult,setDemoResult]=useState<null|{send:boolean,total:number;client:string;items:number}>(null);
  const [title,setTitle]=useState(existingQuote?.title??"Performance Quote");
  const [items,setItems]=useState<Item[]>(existingQuote?.items.map((i,key)=>({
   key,name:i.name,description:i.description??"",quantity:String(i.quantity),price:(i.unit_price_cents/100).toFixed(2),
@@ -92,6 +93,12 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
 
  async function createContact(){
    if(saving)return;
+   if(demo){
+     const name=[firstName.trim(),lastName.trim()].filter(Boolean).join(' ');
+     if(!name || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())){setError('Enter a name and valid email.');return;}
+     const record={id:`demo-contact-${Date.now()}`,first_name:firstName.trim(),last_name:lastName.trim(),full_name:name,email:email.trim()} as Client;
+     setClientList(old=>[...old,record]);setClientId(record.id);setProjectId('');setNewClientOpen(false);setError(null);setStep(1);return;
+   }
    setSaving(true);setError(null);
    try{
      const result=await createQuoteContactAction({first_name:firstName,last_name:lastName,email});
@@ -102,6 +109,11 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    finally{setSaving(false);}
  }
  async function createProject(){
+   if(demo){
+     if(!projectName.trim()){setError('Enter a project name.');return;}
+     const project={id:`demo-project-${Date.now()}`,client_id:clientId,name:projectName.trim()};
+     setProjectList(old=>[...old,project]);setProjectId(project.id);setNewProjectOpen(false);setError(null);setStep(2);return;
+   }
    setSaving(true);setError(null);
    try {
      const result=await createQuoteProjectAction({client_id:clientId,name:projectName});
@@ -126,7 +138,9 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    if(expiryEnabled && !expiry){setError("Choose the quote expiry date.");return;}
    if(expiryEnabled && expiry < new Date().toISOString().slice(0,10)){setError("Expiry must be today or later.");return;}
    if(dollarsToCents(discount)>subtotal){setError("Discount cannot exceed subtotal.");return;}
-   setError(null);setSaving(true);
+   setError(null);
+   if(demo){setDemoResult({send,total,client:client?.full_name??'Sample Client',items:items.length});return;}
+   setSaving(true);
    try{
      const payload={
        client_id:clientId,cs_project_id:projectId||null,inquiry_id:defaultInquiryId||null,
@@ -153,6 +167,8 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
      <button type="button" onClick={()=>saveQuote(false)} disabled={saving} className="text-[#009f87] disabled:opacity-40 font-semibold">{saving?"Saving…":existingQuote?"Done":"Create"}</button>}
    </header>
    <div className="px-4 sm:px-7 py-6 space-y-6">
+     {demo&&<div className="rounded-xl bg-teal-50 text-teal-800 px-4 py-3 text-sm">Interactive preview. Changes are temporary. Nothing is saved or sent.</div>}
+     {demoResult&&<div className="rounded-xl border-2 border-teal-500 bg-white px-5 py-5 space-y-2" role="status"><p className="font-semibold text-teal-800">Quote preview created</p><p className="text-sm text-neutral-600">{demoResult.client} · {demoResult.items} items · {formatCents(demoResult.total)}</p><p className="text-xs text-neutral-500">{demoResult.send?'Email send simulated. No email was sent.':'Draft saved in preview only.'}</p><button type="button" onClick={()=>setDemoResult(null)} className="text-sm font-semibold text-teal-700">Continue editing</button></div>}
      {error&&<div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4 text-sm">{error}</div>}
      <div className="flex gap-1.5 mb-6" aria-label={`Step ${step+1} of 4`}>{[0,1,2,3].map(i=><div key={i} className={`h-1 rounded-full flex-1 ${i<=step?"bg-[#009f87]":"bg-neutral-200"}`}/>)}</div>
 
