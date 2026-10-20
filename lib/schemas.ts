@@ -8,6 +8,11 @@ export const lineItemSchema = z.object({
   description: z.string().optional().nullable(),
   quantity: z.coerce.number().positive("Quantity must be greater than 0"),
   unit_price_cents: z.coerce.number().int().min(0, "Price can't be negative"),
+  item_kind: z.enum(["standard", "optional", "client_selection"]).default("standard"),
+  selected: z.boolean().default(true),
+  selection_group: z.string().max(80).optional().nullable(),
+  range_max_cents: z.coerce.number().int().min(0).optional().nullable(),
+  taxable: z.boolean().default(false),
 });
 
 export const newInquirySchema = z.object({
