@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { previewLoginEnabled } from "@/lib/temporary-preview-auth";
 import { loginAction } from "@/lib/actions/auth";
 import { Input, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,11 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
+  // Only on this preview branch, guide users to the isolated access flow
+  // while Supabase credentials have not yet been provisioned.
+  if (previewLoginEnabled() && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+    redirect("/preview/access");
+  }
   const { next, error } = await searchParams;
 
   return (
