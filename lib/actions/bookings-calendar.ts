@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncBookingToGoogle } from "@/lib/google-calendar";
+import { validBookingRange } from "@/lib/booking-rules";
 const confirmSchema=z.object({
   quoteId:z.string().uuid(),eventDate:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime:z.string().regex(/^\d{2}:\d{2}$/),endTime:z.string().regex(/^\d{2}:\d{2}$/),
@@ -21,7 +22,7 @@ export async function confirmBookingAction(input:unknown){
  const parsed=confirmSchema.safeParse(input);
  if(!parsed.success)return {error:parsed.error.issues[0]?.message||"Enter event date and times."};
  const d=parsed.data;
- if(d.endTime<=d.startTime)return {error:"End time must be after start time."};
+ if(!validBookingRange(d.startTime,d.endTime))return {error:"Use valid times, with end after start."};
  const auth=await getAdmin();if(!auth)return {error:"Admin authorization required."};
  const {data:id,error}=await auth.session.rpc("cs_confirm_booking",{
   p_quote_id:d.quoteId,p_event_date:d.eventDate,p_start_time:d.startTime,p_end_time:d.endTime,p_time_zone:d.timeZone
