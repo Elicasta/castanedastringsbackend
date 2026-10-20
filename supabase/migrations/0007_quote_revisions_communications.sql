@@ -138,3 +138,49 @@ begin
 end $$;
 revoke all on function cs_select_default_contract_template(uuid) from public,anon;
 grant execute on function cs_select_default_contract_template(uuid) to authenticated;
+
+-- A single query for an inbox of client conversations, including form submissions.
+create or replace function cs_inbox_threads(
+ p_view text default 'inbox', p_query text default '', p_limit integer default 40,p_offset integer default 0
+) returns table (
+ client_id uuid,full_name text,email text,latest_at timestamptz,
+ last_subject text,last_body text,last_direction text,
+ inquiry_count bigint,message_count bigint,total_count bigint
+) language sql stable security definer set search_path=public as $$
+with entries as (
+ select m.client_id,m.created_at as happened_at,coalesce(m.subject,'Email') as subject,
+  coalesce(m.body,'') as body,m.direction as direction,
+  false as is_inquiry
+ from communications m where m.client_id is not null
+ union all
+ select i.client_id,i.created_at,coalesce(i.event_type,'New inquiry'),
+  coalesce(i.message,''),'inbound',true
+ from inquiries i where i.client_id is not null
+),
+grouped as (
+ select e.client_id,max(e.happened_at) as updated,
+ count(*) filter(where e.is_inquiry) as inquiries,
+ count(*) filter(where not e.is_inquiry) as messages,
+ bool_or(e.direction='inbound') as has_inbound,
+ bool_or(e.direction='outbound') as has_outbound
+ from entries e group by e.client_id
+),
+summary as (
+ select g.*,c.full_name,c.email,
+ (select e.subject from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as subject,
+ (select e.body from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as body,
+ (select e.direction from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as direction
+ from grouped g join clients c on c.id=g.client_id
+ where (p_view='all' or (p_view='sent' and g.has_outbound)
+        or (p_view='inbox' and g.has_inbound))
+ and (p_query='' or c.full_name ilike '%'||p_query||'%' or c.email ilike '%'||p_query||'%')
+)
+select s.client_id,s.full_name,s.email,s.updated,s.subject,s.body,s.direction,
+ s.inquiries,s.messages,count(*) over()
+from summary s
+where cs_is_admin()
+order by s.updated desc,s.client_id
+limit least(greatest(p_limit,1),100) offset greatest(p_offset,0)
+$$;
+revoke all on function cs_inbox_threads(text,text,integer,integer) from public,anon;
+grant execute on function cs_inbox_threads(text,text,integer,integer) to authenticated;
