@@ -1,68 +1,76 @@
-import {createHmac, timingSafeEqual} from "node:crypto";
+import {createHmac,timingSafeEqual} from "node:crypto";
 import {createAdminClient} from "@/lib/supabase/admin";
-import {logActivity} from "@/lib/activity";
-import {sendTemplateEmail} from "@/lib/email/resend";
 import {NextResponse} from "next/server";
-
 export const runtime="nodejs";
-function extractEmail(value:string) {
- const match=value.match(/<([^>]+)>/);
- return (match?match[1]:value).trim().toLowerCase();
+function emailAddress(input:string):string {
+ const match=input.match(/<([^>]+)>/);
+ return (match?match[1]:input).trim().toLowerCase();
 }
-function verifyWebhook(payload:string,id:string,timestamp:string,signatures:string,secret:string):boolean {
- const ts=Number(timestamp);
- if(!Number.isInteger(ts)||Math.abs(Math.floor(Date.now()/1000)-ts)>300) return false;
- const key=Buffer.from(secret.replace(/^whsec_/,""),"base64");
- if(key.length<16) return false;
- const digest=createHmac("sha256",key).update(`${id}.${timestamp}.${payload}`).digest();
- return signatures.split(" ").some(sig=>{
-   const value=sig.startsWith("v1,")?sig.slice(3):"";
-   if(!value) return false;
-   const incoming=Buffer.from(value,"base64");
-   return incoming.length===digest.length&&timingSafeEqual(incoming,digest);
- });
+function webhookVerified(body:string,headers:Headers,secret:string){
+ const id=headers.get("svix-id"),ts=headers.get("svix-timestamp"),sig=headers.get("svix-signature");
+ if(!id||!ts||!sig)return false;
+ const when=Number(ts);if(!Number.isInteger(when)||Math.abs(Date.now()/1000-when)>300)return false;
+ try{
+  const key=Buffer.from(secret.replace(/^whsec_/,""),"base64");
+  if(key.length<16)return false;
+  const digest=createHmac("sha256",key).update(`${id}.${ts}.${body}`).digest();
+  return sig.split(/\s+/).some(s=>{
+   if(!s.startsWith("v1,"))return false;
+   const compare=Buffer.from(s.slice(3),"base64");
+   return compare.length===digest.length&&timingSafeEqual(digest,compare);
+  });
+ }catch{return false;}
 }
-type InboundEvent={type:string;data?:{email_id?:string}};
-type ResendReceived={from:string;subject?:string;text?:string;html?:string};
-export async function POST(req:Request) {
- const payload=await req.text();
- const id=req.headers.get("svix-id");
- const timestamp=req.headers.get("svix-timestamp");
- const signature=req.headers.get("svix-signature");
+type Event={type?:string;data?:{email_id?:string}};
+type Incoming={
+ from?:string;to?:string[];subject?:string;text?:string|null;html?:string|null;
+ message_id?:string;headers?:Record<string,string>;
+};
+export async function POST(request:Request){
  const secret=process.env.RESEND_WEBHOOK_SECRET;
- if(!secret||!id||!timestamp||!signature||!verifyWebhook(payload,id,timestamp,signature,secret)) {
-   return NextResponse.json({error:"Invalid webhook signature"},{status:401});
- }
- let event:InboundEvent;
- try {event=JSON.parse(payload) as InboundEvent;}
- catch {return NextResponse.json({error:"Invalid JSON"},{status:400});}
- if(event.type!=="email.received") return NextResponse.json({received:true});
- const emailId=event.data?.email_id;
- if(!emailId||!process.env.RESEND_API_KEY) return NextResponse.json({error:"Missing email id or API key"},{status:400});
- const result=await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(emailId)}`,{
-   headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`},cache:"no-store"
+ if(!secret)return NextResponse.json({error:"Inbound email not configured"},{status:503});
+ const raw=await request.text();
+ if(!webhookVerified(raw,request.headers,secret))return NextResponse.json({error:"Invalid webhook signature"},{status:401});
+ let event:Event;try{event=JSON.parse(raw);}catch{return NextResponse.json({error:"Bad JSON"},{status:400});}
+ if(event.type!=="email.received")return NextResponse.json({received:true});
+ const id=event.data?.email_id;
+ if(!id||!process.env.RESEND_API_KEY)return NextResponse.json({error:"Missing email identifier or API key"},{status:503});
+ const db=createAdminClient();
+ const {data:already}=await db.from("communications").select("id").eq("resend_email_id",id).maybeSingle();
+ if(already)return NextResponse.json({received:true});
+ const fetched=await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(id)}`,{
+  headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`},cache:"no-store"
  });
- if(!result.ok) return NextResponse.json({error:"Failed to fetch incoming email"},{status:502});
- const message=await result.json() as ResendReceived;
- if(!message.from) return NextResponse.json({error:"Missing sender"},{status:400});
- const supabase=createAdminClient();
- const from=extractEmail(message.from);
- const {data:client}=await supabase.from("clients").select("*").eq("email",from).maybeSingle();
- const {data:comm,error}=await supabase.from("communications").insert({
-   client_id:client?.id??null,channel:"email",direction:"inbound",
-   subject:message.subject??null,body:message.text??message.html??"",status:"received"
- }).select("id").single();
- if(error||!comm) return NextResponse.json({error:"Could not save inbound communication"},{status:500});
- await logActivity({
-  action:"received",entity_type:"communication",entity_id:comm.id,
-  description:`Email reply from ${message.from}`
- });
- if(process.env.RESEND_FROM_EMAIL) {
-   await sendTemplateEmail({
-     to:process.env.RESEND_FROM_EMAIL,template:"inbound_reply_admin",
-     vars:{from_name:client?.full_name??message.from,subject:message.subject??"(no subject)",snippet:(message.text??"").slice(0,200)},
-     client_id:client?.id??null
-   }).catch(()=>null);
+ if(!fetched.ok)return NextResponse.json({error:"Could not retrieve email"},{status:502});
+ const mail=await fetched.json() as Incoming;
+ const from=emailAddress(mail.from||"");
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from))return NextResponse.json({error:"Sender email invalid"},{status:400});
+ const target=Array.isArray(mail.to)?mail.to.map(emailAddress).join(", "):"";
+ const {data:known}=await db.from("clients").select("id,full_name").ilike("email",from).limit(1).maybeSingle();
+ let clientId=known?.id||null;
+ // Incoming email creates a contact only when necessary, so any inbound message
+ // can appear as a replyable conversation even without an earlier form inquiry.
+ if(!clientId){
+  const display=(mail.from||"").split("<")[0].replace(/["<>]/g,"").trim();
+  const parts=display.split(/\s+/).filter(Boolean).slice(0,8);
+  const first=parts.shift()||"Email";
+  const last=parts.join(" ")||"Contact";
+  const created=await db.from("clients").insert({
+   first_name:first,last_name:last,email:from,notes:"Created from incoming Resend email"
+  }).select("id").single();
+  if(created.error||!created.data)return NextResponse.json({error:"Could not create email contact"},{status:500});
+  clientId=created.data.id;
  }
+ const subject=(mail.subject||"(No subject)").slice(0,200);
+ const body=(mail.text||"").slice(0,30000) ||
+  "[HTML email received. Plain-text body unavailable. View message at the provider.]";
+ const headerId=mail.message_id||mail.headers?.["message-id"]||null;
+ const {error}=await db.from("communications").insert({
+  client_id:clientId,channel:"email",direction:"inbound",
+  from_email:from,to_email:target,subject,body,
+  resend_email_id:id,message_id_header:headerId,status:"received"
+ });
+ // Unique resend_email_id protects webhook retries, including concurrent delivery.
+ if(error&&error.code!=="23505")return NextResponse.json({error:"Unable to save email"},{status:500});
  return NextResponse.json({received:true});
 }
