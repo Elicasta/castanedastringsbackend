@@ -184,3 +184,27 @@ limit least(greatest(p_limit,1),100) offset greatest(p_offset,0)
 $$;
 revoke all on function cs_inbox_threads(text,text,integer,integer) from public,anon;
 grant execute on function cs_inbox_threads(text,text,integer,integer) to authenticated;
+
+-- Read-only viewer roles cannot edit clients, quotes, invoices, agreements or communications,
+-- even by calling Supabase REST directly. All writes require staff/admin/owner.
+create or replace function cs_can_write()
+returns boolean language sql stable security definer set search_path=public as $$
+ select exists(select 1 from cs_admin_members
+  where auth_user_id=auth.uid() and role in ('owner','admin','staff'))
+$$;
+revoke all on function cs_can_write() from public,anon;
+grant execute on function cs_can_write() to authenticated;
+do $$
+declare table_name text;
+begin
+ foreach table_name in array ARRAY['clients','inquiries','quotes','quote_items',
+   'invoices','invoice_items','contracts','contract_templates','quote_templates',
+   'communications','settings','activity_logs','email_templates','cs_quote_projects']
+ loop
+  if to_regclass('public.'||table_name) is not null then
+   execute format('drop policy if exists cs_staff_access on public.%I',table_name);
+   execute format('create policy cs_member_read on public.%I for select using (cs_is_admin())',table_name);
+   execute format('create policy cs_member_write on public.%I for all using (cs_can_write()) with check (cs_can_write())',table_name);
+  end if;
+ end loop;
+end $$;
