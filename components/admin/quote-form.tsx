@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronRight, FileText, FolderOpen, Plus, Search, Trash2, X } from "lucide-react";
 import { createQuoteAction, updateQuoteDraftAction } from "@/lib/actions/quotes";
+import { QuoteEmailComposer } from "@/components/admin/quote-email-composer";
 import { createQuoteContactAction, createQuoteProjectAction } from "@/lib/actions/quote-builder";
 import { formatCents, dollarsToCents } from "@/lib/currency";
 import { quoteSubtotal, quoteTotal, type ItemKind } from "@/lib/quote-builder";
@@ -40,6 +41,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState<string|null>(null);
  const [demoResult,setDemoResult]=useState<null|{send:boolean,total:number;client:string;items:number}>(null);
+ const [demoEmailOpen,setDemoEmailOpen]=useState(false);
  const [title,setTitle]=useState(existingQuote?.title??"Performance Quote");
  const [items,setItems]=useState<Item[]>(existingQuote?.items.map((i,key)=>({
   key,name:i.name,description:i.description??"",quantity:String(i.quantity),price:(i.unit_price_cents/100).toFixed(2),
@@ -139,7 +141,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    if(expiryEnabled && expiry < new Date().toISOString().slice(0,10)){setError("Expiry must be today or later.");return;}
    if(dollarsToCents(discount)>subtotal){setError("Discount cannot exceed subtotal.");return;}
    setError(null);
-   if(demo){setDemoResult({send,total,client:client?.full_name??'Sample Client',items:items.length});return;}
+   if(demo){if(send){setDemoEmailOpen(true);}else{setDemoResult({send:false,total,client:client?.full_name??'Sample Client',items:items.length});}return;}
    setSaving(true);
    try{
      const payload={
@@ -153,10 +155,15 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
      };
      const result=existingQuote ? await updateQuoteDraftAction(existingQuote.id,existingQuote.updated_at,payload) : await createQuoteAction(payload);
      if(result?.error)setError(result.error);
-     else if(existingQuote && result && 'success' in result && result.success){router.push(`/quotes/${existingQuote.id}`);router.refresh();}
+     else if(result && 'success' in result && result.success){
+       const savedId=existingQuote?.id || ('quoteId' in result ? result.quoteId : undefined);
+       if(savedId){router.push(send?`/quotes/${savedId}/send`:`/quotes/${savedId}`);router.refresh();}
+     }
    }catch(e){setError(e instanceof Error?e.message:"Unable to save quote.");}
    finally{setSaving(false);}
  }
+
+ if(demoEmailOpen)return <QuoteEmailComposer demo recipientName={client?.full_name??"Sample Client"} recipientEmail={client?.email??"sample@example.invalid"} quoteNumber="PREVIEW" onClose={()=>setDemoEmailOpen(false)}/>;
 
  return <div className="cs-quote-sheet min-h-[75vh] rounded-2xl overflow-hidden -mx-4 sm:mx-0">
    <header className="sticky top-0 z-20 flex items-center justify-between bg-[#f7f7f8] px-5 py-4 border-b border-neutral-200">
