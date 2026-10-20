@@ -34,6 +34,7 @@ export async function sendTemplateEmail(params: SendTemplateEmailParams) {
   try {
     const { data, error } = await getResend().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
+      ...(process.env.RESEND_INBOUND_EMAIL ? { replyTo: process.env.RESEND_INBOUND_EMAIL } : {}),
       to: params.to,
       subject,
       text: body,
