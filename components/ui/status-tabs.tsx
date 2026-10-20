@@ -15,6 +15,7 @@ export function StatusTabs({ tabs }: { tabs: { label: string; value: string }[] 
         const params = new URLSearchParams(searchParams.toString());
         if (tab.value === tabs[0].value) params.delete("status");
         else params.set("status", tab.value);
+        params.delete("page");
         const href = `${pathname}?${params.toString()}`;
         const isActive = active === tab.value;
         return (
