@@ -28,6 +28,19 @@ Let me know if you'd like any changes.
 
 {{business_name}}`,
   },
+  quote_reminder: {
+    subject: "Reminder: your Castaneda Strings quote expires {{expiry_date}}",
+    body: `Hi {{client_first_name}},
+
+Just a reminder that your quote for {{event_type}} expires {{expiry_date}}.
+
+You can review it and respond here:
+{{quote_link}}
+
+If you have questions, reply directly.
+
+{{business_name}}`,
+  },
   quote_accepted_admin: {
     subject: "Quote accepted: {{quote_number}}",
     body: `{{client_name}} accepted quote {{quote_number}} ({{total}}).
