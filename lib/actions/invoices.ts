@@ -10,7 +10,7 @@ import { formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { canTransitionInvoice, InvalidTransitionError } from "@/lib/status";
-import { stripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { invoiceUrl, portalUrl, adminInvoiceUrl } from "@/lib/urls";
 import { revalidatePath } from "next/cache";
 
@@ -244,7 +244,7 @@ export async function createInvoiceCheckoutSessionPublicAction(invoicePublicId: 
     return { error: "This invoice can't be paid right now." };
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
     line_items: [
