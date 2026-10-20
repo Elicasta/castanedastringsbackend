@@ -54,7 +54,7 @@ function WorkspaceMenu({path,compact=false,onNavigate=()=>{}}:{
  return <nav aria-label="Admin workspaces" className="space-y-3">
   {navGroups.map(g=>{
    const hasActive=g.items.some(item=>currentItem(path,item));
-   const expanded=open[g.id]||hasActive;
+   const expanded=open[g.id]!==false;
    return <section key={g.id} aria-label={g.label}>
     <button type="button" aria-expanded={expanded} onClick={()=>setOpen(old=>({...old,[g.id]:!expanded}))}
      className={cn("w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest",hasActive?"text-[#087b68]":"text-[#829087]")}>
