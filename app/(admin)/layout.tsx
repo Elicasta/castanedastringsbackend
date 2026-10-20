@@ -4,7 +4,7 @@ import { LogOut } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="cs-admin flex min-h-screen">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="hidden md:flex items-center justify-end gap-3 border-b border-border px-6 py-3">
@@ -14,7 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </form>
         </header>
-        <main className="flex-1 px-4 sm:px-6 py-5 pb-24 md:pb-8 max-w-5xl w-full">
+        <main className="flex-1 px-4 sm:px-6 py-5 pb-24 md:pb-8 max-w-6xl w-full">
           {children}
         </main>
       </div>
