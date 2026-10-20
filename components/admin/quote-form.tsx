@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronRight, FileText, FolderOpen, Plus, Search, Trash2, X } from "lucide-react";
@@ -39,6 +39,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
  const [newProjectOpen,setNewProjectOpen]=useState(false);
  const [projectName,setProjectName]=useState("");
  const [saving,setSaving]=useState(false);
+ const saveLock=useRef(false);
  const [error,setError]=useState<string|null>(null);
  const [demoResult,setDemoResult]=useState<null|{send:boolean,total:number;client:string;items:number}>(null);
  const [demoEmailOpen,setDemoEmailOpen]=useState(false);
@@ -131,7 +132,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    setStep(Math.min(3,step+1));
  }
  async function saveQuote(send:boolean){
-   if(saving)return;
+   if(saveLock.current||saving)return;
    if(items.some(i=>i.name.trim()==="" || !(Number(i.quantity)>0) || !(Number(i.price)>=0) || !Number.isFinite(Number(i.price)))){
      setError("Finish or remove empty items before saving.");return;
    }
@@ -142,6 +143,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    if(dollarsToCents(discount)>subtotal){setError("Discount cannot exceed subtotal.");return;}
    setError(null);
    if(demo){if(send){setDemoEmailOpen(true);}else{setDemoResult({send:false,total,client:client?.full_name??'Sample Client',items:items.length});}return;}
+   saveLock.current=true;
    setSaving(true);
    try{
      const payload={
@@ -160,7 +162,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
        if(savedId){router.push(send?`/quotes/${savedId}/send`:`/quotes/${savedId}`);router.refresh();}
      }
    }catch(e){setError(e instanceof Error?e.message:"Unable to save quote.");}
-   finally{setSaving(false);}
+   finally{saveLock.current=false;setSaving(false);}
  }
 
  if(demoEmailOpen)return <QuoteEmailComposer demo recipientName={client?.full_name??"Sample Client"} recipientEmail={client?.email??"sample@example.invalid"} quoteNumber="PREVIEW" onClose={()=>setDemoEmailOpen(false)}/>;
