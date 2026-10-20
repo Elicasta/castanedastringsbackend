@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronRight, FileText, FolderOpen, Plus, Search, Trash2, X } from "lucide-react";
-import { createQuoteAction } from "@/lib/actions/quotes";
+import { createQuoteAction, updateQuoteDraftAction } from "@/lib/actions/quotes";
 import { createQuoteContactAction, createQuoteProjectAction } from "@/lib/actions/quote-builder";
 import { formatCents, dollarsToCents } from "@/lib/currency";
 import { quoteSubtotal, quoteTotal, type ItemKind } from "@/lib/quote-builder";
 import type { Client, QuoteTemplate } from "@/lib/types";
 
 type Project = { id: string; client_id: string; name: string };
+type ExistingQuote = {id:string;client_id:string;cs_project_id?:string|null;updated_at:string;title:string;event_type?:string|null;event_date?:string|null;location_name?:string|null;valid_until?:string|null;notes_to_client?:string|null;internal_notes?:string|null;discount_cents:number;tax_cents:number;auto_create_invoice?:boolean;reminders_enabled?:boolean;reminder_days_before?:number;items:Array<{name:string;description?:string|null;quantity:number;unit_price_cents:number;item_kind?:ItemKind;selection_group?:string|null;range_max_cents?:number|null;taxable?:boolean}>};
 type Item = { key: number; name: string; description: string; quantity: string; price: string; range: boolean; rangeMax: string; kind: ItemKind; group: string; taxable: boolean };
 const newItem = (key: number, kind: ItemKind = "standard"): Item => ({
  key, name:"", description:"", quantity:"1", price:"", range:false, rangeMax:"", kind, group:"", taxable:false
@@ -20,15 +21,15 @@ const CARD = "bg-white rounded-xl border border-neutral-100 overflow-hidden";
 const ACCENT = "text-[#009f87]";
 const CATEGORY_NAMES:Record<string,string>={wedding:"Wedding",private_celebration:"Private Celebrations",corporate:"Corporate & Brand",proposal:"Proposals",lessons:"Lessons"};
 
-export function QuoteForm({clients,templates,projects=[],defaultClientId,defaultInquiryId,defaultEventType,defaultEventDate,defaultLocation}:{
- clients:Client[];templates:QuoteTemplate[];projects?:Project[];defaultClientId?:string;defaultInquiryId?:string;defaultEventType?:string|null;defaultEventDate?:string|null;defaultLocation?:string|null;
+export function QuoteForm({clients,templates,projects=[],defaultClientId,defaultInquiryId,defaultEventType,defaultEventDate,defaultLocation,existingQuote}:{
+ clients:Client[];templates:QuoteTemplate[];projects?:Project[];defaultClientId?:string;defaultInquiryId?:string;defaultEventType?:string|null;defaultEventDate?:string|null;defaultLocation?:string|null;existingQuote?:ExistingQuote;
 }) {
  const router=useRouter();
- const [step,setStep]=useState(defaultClientId?1:0);
+ const [step,setStep]=useState(existingQuote?3:defaultClientId?1:0);
  const [clientList,setClientList]=useState(clients);
  const [projectList,setProjectList]=useState(projects);
- const [clientId,setClientId]=useState(defaultClientId??"");
- const [projectId,setProjectId]=useState("");
+ const [clientId,setClientId]=useState(existingQuote?.client_id??defaultClientId??"");
+ const [projectId,setProjectId]=useState(existingQuote?.cs_project_id??"");
  const [search,setSearch]=useState("");
  const [newClientOpen,setNewClientOpen]=useState(false);
  const [firstName,setFirstName]=useState("");
@@ -38,23 +39,27 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
  const [projectName,setProjectName]=useState("");
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState<string|null>(null);
- const [title,setTitle]=useState("Performance Quote");
- const [items,setItems]=useState<Item[]>([]);
- const [counter,setCounter]=useState(0);
+ const [title,setTitle]=useState(existingQuote?.title??"Performance Quote");
+ const [items,setItems]=useState<Item[]>(existingQuote?.items.map((i,key)=>({
+  key,name:i.name,description:i.description??"",quantity:String(i.quantity),price:(i.unit_price_cents/100).toFixed(2),
+  range:i.range_max_cents!=null,rangeMax:i.range_max_cents==null?"":(i.range_max_cents/100).toFixed(2),
+  kind:i.item_kind??"standard",group:i.selection_group??"",taxable:i.taxable??false
+ }))??[]);
+ const [counter,setCounter]=useState(existingQuote?.items.length??0);
  const [editingItem,setEditingItem]=useState<number|null>(null);
  const [showTypePicker,setShowTypePicker]=useState(false);
- const [discount,setDiscount]=useState("0");
- const [tax,setTax]=useState("0");
- const [note,setNote]=useState("");
- const [internalNote,setInternalNote]=useState("");
- const [eventType,setEventType]=useState(defaultEventType??"");
- const [eventDate,setEventDate]=useState(defaultEventDate??"");
- const [venue,setVenue]=useState(defaultLocation??"");
- const [expiryEnabled,setExpiryEnabled]=useState(false);
- const [expiry,setExpiry]=useState("");
- const [reminders,setReminders]=useState(false);
- const [reminderDays,setReminderDays]=useState("2");
- const [autoInvoice,setAutoInvoice]=useState(true);
+ const [discount,setDiscount]=useState(String((existingQuote?.discount_cents??0)/100));
+ const [tax,setTax]=useState(String((existingQuote?.tax_cents??0)/100));
+ const [note,setNote]=useState(existingQuote?.notes_to_client??"");
+ const [internalNote,setInternalNote]=useState(existingQuote?.internal_notes??"");
+ const [eventType,setEventType]=useState(existingQuote?.event_type??defaultEventType??"");
+ const [eventDate,setEventDate]=useState(existingQuote?.event_date??defaultEventDate??"");
+ const [venue,setVenue]=useState(existingQuote?.location_name??defaultLocation??"");
+ const [expiryEnabled,setExpiryEnabled]=useState(Boolean(existingQuote?.valid_until));
+ const [expiry,setExpiry]=useState(existingQuote?.valid_until??"");
+ const [reminders,setReminders]=useState(existingQuote?.reminders_enabled??false);
+ const [reminderDays,setReminderDays]=useState(String(existingQuote?.reminder_days_before??2));
+ const [autoInvoice,setAutoInvoice]=useState(existingQuote?.auto_create_invoice??true);
  const [settingsOpen,setSettingsOpen]=useState(false);
 
  const client=clientList.find(c=>c.id===clientId);
@@ -123,7 +128,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
    if(dollarsToCents(discount)>subtotal){setError("Discount cannot exceed subtotal.");return;}
    setError(null);setSaving(true);
    try{
-     const result=await createQuoteAction({
+     const payload={
        client_id:clientId,cs_project_id:projectId||null,inquiry_id:defaultInquiryId||null,
        title:title.trim()||"Performance Quote", event_type:eventType,event_date:eventDate,location_name:venue,
        valid_until:expiryEnabled?expiry:"",reminders_enabled:reminders,reminder_days_before:Number(reminderDays)||2,
@@ -131,19 +136,21 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
        notes_to_client:note,internal_notes:internalNote,discount_cents:dollarsToCents(discount),
        tax_cents:dollarsToCents(tax),send,
        items:pricedItems
-     });
+     };
+     const result=existingQuote ? await updateQuoteDraftAction(existingQuote.id,existingQuote.updated_at,payload) : await createQuoteAction(payload);
      if(result?.error)setError(result.error);
+     else if(existingQuote && result?.success){router.push(`/quotes/${existingQuote.id}`);router.refresh();}
    }catch(e){setError(e instanceof Error?e.message:"Unable to save quote.");}
    finally{setSaving(false);}
  }
 
  return <div className="cs-quote-sheet min-h-[75vh] rounded-2xl overflow-hidden -mx-4 sm:mx-0">
    <header className="sticky top-0 z-20 flex items-center justify-between bg-[#f7f7f8] px-5 py-4 border-b border-neutral-200">
-     {step===0?<Link href="/quotes" className={ACCENT}>Cancel</Link>:
+     {step===0?<Link href="/quotes" className={ACCENT}>Cancel</Link>:existingQuote?<Link href={`/quotes/${existingQuote.id}`} aria-label="Back to quote" className={ACCENT}><ArrowLeft size={22}/></Link>:
      <button type="button" onClick={()=>{setError(null);setStep(s=>s-1);}} aria-label="Go back" className={ACCENT}><ArrowLeft size={22}/></button>}
-     <strong className="text-lg font-semibold">New Quote</strong>
+     <strong className="text-lg font-semibold">{existingQuote?"Edit Quote":"New Quote"}</strong>
      {step<3?<button type="button" onClick={next} disabled={step===0&&!clientId} className="text-[#009f87] disabled:opacity-30 font-semibold">Next</button>:
-     <button type="button" onClick={()=>saveQuote(false)} disabled={saving} className="text-[#009f87] disabled:opacity-40 font-semibold">{saving?"Saving…":"Create"}</button>}
+     <button type="button" onClick={()=>saveQuote(false)} disabled={saving} className="text-[#009f87] disabled:opacity-40 font-semibold">{saving?"Saving…":existingQuote?"Done":"Create"}</button>}
    </header>
    <div className="px-4 sm:px-7 py-6 space-y-6">
      {error&&<div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4 text-sm">{error}</div>}
