@@ -27,24 +27,39 @@ const TABS = [
 export default async function QuotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
-  const { q, status } = await searchParams;
+  const { q, status, page: pageParam } = await searchParams;
+  const page=Math.min(100000,Math.max(1,Number.parseInt(pageParam??"1",10)||1));
+  const pageSize=30;
   const supabase = await createClient();
 
   let query = supabase
     .from("quotes")
-    .select("*, client:clients(*)")
+    .select("*, client:clients(*)",{count:"exact"})
     .order("created_at", { ascending: false });
 
   if (status === "sent") query = query.in("status", ["sent", "pending"]);
   else if (TABS.some(tab=>tab.value===status && status!=="all")) query=query.eq("status",status!);
   if (q) {
-    const safe = q.slice(0,80).replace(/[,.()%"\\]/g,"").trim();
-    if (safe) query = query.or(`title.ilike.%${safe}%,event_type.ilike.%${safe}%,quote_number.ilike.%${safe}%`);
+    const safe=q.slice(0,80).replace(/[,.()%"\\]/g,"").trim();
+    if(safe){
+      const {data:clients}=await supabase.from("clients").select("id").ilike("full_name",`%${safe}%`).limit(100);
+      const extra=(clients??[]).map(c=>c.id).filter(Boolean);
+      const predicates=[`title.ilike.%${safe}%`,`event_type.ilike.%${safe}%`,`quote_number.ilike.%${safe}%`];
+      if(extra.length)predicates.push(`client_id.in.(${extra.join(",")})`);
+      query=query.or(predicates.join(","));
+    }
   }
-
-  const { data: quotes } = await query.limit(500);
+  const {data:quotes,count,error}=await query.range((page-1)*pageSize,page*pageSize-1);
+  const totalPages=Math.max(1,Math.ceil((count??0)/pageSize));
+  const makeLink=(p:number)=>{
+    const params=new URLSearchParams();
+    if(q)params.set("q",q);
+    if(status&&status!=="all")params.set("status",status);
+    params.set("page",String(p));
+    return `/quotes?${params.toString()}`;
+  };
 
   return (
     <div>
@@ -67,6 +82,7 @@ export default async function QuotesPage({
         <StatusTabs tabs={TABS} />
       </div>
 
+      {error&&<p className="rounded-xl bg-red-50 text-red-700 p-3 text-sm">Unable to load quotes. Check your database and admin access.</p>}
       {!quotes || quotes.length === 0 ? (
         <EmptyState
           icon={FileText}
@@ -76,6 +92,7 @@ export default async function QuotesPage({
         />
       ) : (
         <div className="space-y-2">
+          <p className="text-xs text-muted">{count??0} quote{count===1?"":"s"} found · Page {page} of {totalPages}</p>
           {quotes.map((quote) => (
             <Link key={quote.id} href={`/quotes/${quote.id}`}>
               <Card className="flex items-center justify-between hover:border-brand/40 transition-colors">
@@ -89,6 +106,7 @@ export default async function QuotesPage({
               </Card>
             </Link>
           ))}
+          {totalPages>1&&<nav aria-label="Quote pages" className="flex items-center justify-between pt-4 text-sm"><span>{page>1?<Link href={makeLink(page-1)} className="text-brand font-semibold">← Previous</Link>:<span className="text-neutral-400">Previous</span>}</span><span>{page} / {totalPages}</span><span>{page<totalPages?<Link href={makeLink(page+1)} className="text-brand font-semibold">Next →</Link>:<span className="text-neutral-400">Next</span>}</span></nav>}
         </div>
       )}
     </div>
