@@ -57,6 +57,8 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ pu
 
         {quote.status === "pending" && !expired ? (
           <QuoteResponse publicId={publicId} items={items} discountCents={quote.discount_cents??0} taxCents={quote.tax_cents??0} />
+        ) : quote.status==="accepted" ? (
+          <Card><p className="font-semibold mb-2">Quote accepted</p><p className="text-sm text-muted">Thank you. We will contact you with the invoice and performance agreement once they're ready. Your date is confirmed only after the required agreement and payment are complete.</p></Card>
         ) : (
           <p className="text-center text-sm text-muted">This quote is {expired && quote.status === "pending" ? "expired" : quote.status}.</p>
         )}
