@@ -172,11 +172,15 @@ export async function respondToQuotePublicAction(
     const contractResult = await generateContractFromQuoteAction(quote.id);
     if (contractResult && "public_id" in contractResult) contractPublicId = contractResult.public_id;
     if (quote.client?.email && process.env.RESEND_FROM_EMAIL) {
-      await sendTemplateEmail({
-        to:process.env.RESEND_FROM_EMAIL,template:"quote_accepted_admin",
-        vars:{client_name:quote.client.full_name,quote_number:quote.quote_number??"",total:formatCents(quote.total_cents,quote.currency),admin_link:adminQuoteUrl(quote.id)},
-        quote_id:quote.id
-      });
+      try {
+        await sendTemplateEmail({
+          to:process.env.RESEND_FROM_EMAIL,template:"quote_accepted_admin",
+          vars:{client_name:quote.client.full_name,quote_number:quote.quote_number??"",total:formatCents(quote.total_cents,quote.currency),admin_link:adminQuoteUrl(quote.id)},
+          quote_id:quote.id
+        });
+      } catch (notifyError) {
+        console.error("Quote accepted; admin notification failed",notifyError);
+      }
     }
   }
 
