@@ -49,9 +49,8 @@ export function QuoteResponse({publicId,items,discountCents=0,taxCents=0}:{
  }
  if(result)return <div className="rounded-2xl bg-brand-light p-5 text-center space-y-3">
    <p className="font-semibold text-brand-dark">Quote accepted</p>
-   <p className="text-sm">Your date is not fully booked until the agreement and payment requirements are complete.</p>
-   {result.invoicePublicId&&<a href={`/i/${result.invoicePublicId}`} className="block rounded-xl bg-brand text-white py-3 text-sm font-semibold">Review &amp; pay invoice</a>}
-   {result.contractPublicId&&<a href={`/c/${result.contractPublicId}`} className="block rounded-xl border border-brand text-brand-dark bg-white py-3 text-sm font-semibold">Sign agreement</a>}
+   <p className="text-sm">Your quote has been received. We will send the invoice and performance agreement once they are ready. Your date is not confirmed until the required payment and signed agreement are complete.</p>
+
  </div>;
  return <div className="space-y-4">
    {choices.length>0&&<div className="rounded-2xl border border-border bg-white p-4 space-y-3">
