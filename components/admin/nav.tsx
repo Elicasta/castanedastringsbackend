@@ -8,7 +8,7 @@ import {logoutAction} from "@/lib/actions/auth";
 import {
   LayoutDashboard, Inbox, FileText, Receipt, FileSignature, Users,
   MessagesSquare, CalendarDays, Settings2, Mail, CreditCard,
-  ScrollText, ClipboardList, SlidersHorizontal, Menu, X, ChevronRight,
+  ScrollText, ClipboardList, Menu, X, ChevronRight,
   Plus, LogOut, type LucideIcon
 } from "lucide-react";
 
