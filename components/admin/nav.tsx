@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {usePathname} from "next/navigation";
+import {usePathname,useSearchParams} from "next/navigation";
 import {useEffect,useState} from "react";
 import {cn} from "@/lib/cn";
 import {
@@ -109,7 +109,7 @@ export function Sidebar(){
  </aside>;
 }
 export function WorkspaceHeader(){
- const pathname=usePathname(),section=sectionMap[sectionOf(pathname)];
+ const pathname=usePathname(),search=useSearchParams(),section=sectionMap[sectionOf(pathname)];
  return <div className="sticky top-0 z-20 bg-[#f7f8f8]/95 backdrop-blur-xl border-b border-[#e8ecea]">
    <div className="flex items-center justify-between min-h-[65px] px-4 sm:px-7 gap-3">
     <div className="min-w-0"><h2 className="font-semibold text-[15px] text-[#162c26]">{section.title}</h2><p className="hidden sm:block text-xs text-[#77817c]">{section.subtitle}</p></div>
@@ -119,11 +119,9 @@ export function WorkspaceHeader(){
     {section.tabs.map(tab=>{
       const url=tab.href.split("?"),key=url[0],param=new URLSearchParams(url[1]||"");
       const samePath=pathname===key||(!url[1]&&pathname.startsWith(key+"/"));
-      const selected=samePath && (section===sectionMap.messages?(!url[1]||true):true);
-      // In communications, distinguish links by URL's view parameter.
       const isActive=section===sectionMap.messages&&key==="/communications"
-        ? samePath&&(typeof window==="undefined"?param.get("view")==="inbox":new URLSearchParams(window.location.search).get("view")===param.get("view"))
-        :selected;
+        ? samePath&&(search.get("view")||"inbox")===param.get("view")
+        : samePath;
       return <Link key={tab.href} href={tab.href}
        className={cn("border-b-[3px] px-3.5 py-3 text-[12px] font-semibold transition-colors",
          isActive?"text-[#007965] border-[#008b77]":"text-[#71807a] border-transparent hover:text-[#172d27] hover:border-[#c6d5ce]")}>
