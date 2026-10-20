@@ -13,6 +13,7 @@ import {
   Settings,
   Users,
   MoreHorizontal,
+  CalendarDays,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -20,6 +21,7 @@ const SIDEBAR_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inquiries", label: "Inquiries", icon: Inbox },
   { href: "/quotes", label: "Quotes", icon: FileText },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/contracts", label: "Contracts", icon: FileSignature },
   { href: "/clients", label: "Clients", icon: Users },
@@ -31,11 +33,12 @@ const BOTTOM_LINKS = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/inquiries", label: "Inquiries", icon: Inbox },
   { href: "/quotes", label: "Quotes", icon: FileText },
-  { href: "/invoices", label: "Invoices", icon: Receipt },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
 ];
 
 const MORE_LINKS = [
   { href: "/contracts", label: "Contracts", icon: FileSignature },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/contracts/templates", label: "Contract Templates", icon: FileSignature },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/communications", label: "Communications", icon: MessageSquare },
