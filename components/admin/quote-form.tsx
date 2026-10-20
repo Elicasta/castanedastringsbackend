@@ -139,7 +139,7 @@ export function QuoteForm({clients,templates,projects=[],defaultClientId,default
      };
      const result=existingQuote ? await updateQuoteDraftAction(existingQuote.id,existingQuote.updated_at,payload) : await createQuoteAction(payload);
      if(result?.error)setError(result.error);
-     else if(existingQuote && result?.success){router.push(`/quotes/${existingQuote.id}`);router.refresh();}
+     else if(existingQuote && result && 'success' in result && result.success){router.push(`/quotes/${existingQuote.id}`);router.refresh();}
    }catch(e){setError(e instanceof Error?e.message:"Unable to save quote.");}
    finally{setSaving(false);}
  }
