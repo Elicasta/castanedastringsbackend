@@ -113,64 +113,6 @@ export async function updateQuoteDraftAction(quoteId: string, expectedUpdatedAt:
   return {success:true};
 }
 
-export async function sendQuoteAction(quoteId: string) {
-  const supabase = await createClient();
-  const { data: quote, error } = await supabase
-    .from("quotes")
-    .select("*, client:clients(*)")
-    .eq("id", quoteId)
-    .single();
-  if (error || !quote) throw new Error("Quote not found");
-
-  if (!canTransitionQuote(quote.status, "pending")) {
-    throw new InvalidTransitionError("quote", quote.status, "pending");
-  }
-  if (!quote.client?.email) {
-    return { error: "This client doesn't have an email on file yet." };
-  }
-
-  const {data: lines, error: linesError} = await supabase.from("quote_items").select("id").eq("quote_id",quoteId).limit(1);
-  if (linesError || !lines?.length) return {error:"Add at least one item before sending this quote."};
-  if (quote.valid_until && quote.valid_until < new Date().toISOString().slice(0,10)) return {error:"Choose a future expiry date before sending."};
-  const quoteLink = quoteUrl(quote.public_id);
-
-  const result = await sendTemplateEmail({
-    to: quote.client.email,
-    template: "quote_sent",
-    vars: {
-      client_first_name: quote.client.first_name,
-      event_type: quote.event_type ?? "your event",
-      event_date: formatDate(quote.event_date),
-      quote_link: quoteLink,
-      portal_link: portalUrl(quote.client.portal_public_id) ?? "",
-      business_name: "Castaneda Strings",
-    },
-    client_id: quote.client_id,
-    inquiry_id: quote.inquiry_id,
-    quote_id: quote.id,
-  });
-
-  if (!result.success) return { error: "Quote saved, but email failed: " + result.error };
-  const {data: moved} = await supabase.from("quotes").update({ status: "pending" }).eq("id", quoteId).in("status",["draft","sent"]).select("id").maybeSingle();
-  if (!moved) return {error:"Quote was already sent or changed while sending. Check its status."};
-  if (quote.inquiry_id) {
-    await supabase.from("inquiries").update({ status: "quoted" }).eq("id", quote.inquiry_id);
-  }
-
-  await logActivity({
-    action: "sent",
-    entity_type: "quote",
-    entity_id: quoteId,
-    description: `Quote ${quote.quote_number} sent to ${quote.client.email}`,
-  });
-
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
-  revalidatePath("/inquiries");
-
-  return { success: true };
-}
-
 export async function cancelQuoteAction(quoteId: string) {
   const supabase = await createClient();
   const { data: quote } = await supabase.from("quotes").select("status").eq("id", quoteId).single();
