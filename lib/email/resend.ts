@@ -2,7 +2,12 @@ import { Resend } from "resend";
 import { EMAIL_TEMPLATES, renderTemplate, brandedHtml, type EmailTemplateKey } from "./templates";
 import { logCommunication } from "../communications";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Do not instantiate on import: Next builds pages without third-party env keys.
+let resend:Resend|null=null;
+function getResend(){
+  if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
+  return resend??(resend=new Resend(process.env.RESEND_API_KEY));
+}
 
 interface SendTemplateEmailParams {
   to: string;
@@ -26,7 +31,7 @@ export async function sendTemplateEmail(params: SendTemplateEmailParams) {
   const body = renderTemplate(tmpl.body, params.vars);
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: params.to,
       subject,
