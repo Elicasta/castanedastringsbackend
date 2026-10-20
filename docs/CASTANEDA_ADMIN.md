@@ -40,3 +40,15 @@ Use `.env.example` for Supabase, Resend, Stripe, and public app URL. Use verifie
 - Confirm public quote/invoice/contract URLs use server-side opaque IDs and anonymous Supabase client cannot list financial rows.
 - Test migrations on a **fresh Castaneda-only** database and rehearse migration against a sanitized backup of production. Do not merge if the live database schema differs.
 - Email reminders must be backed by a scheduler, otherwise keep disabled.
+
+## Email composer, quote lifecycle, and Google Calendar
+- Create a draft first. **Save & Send** opens `/quotes/:id/send` for editable subject, message, copy-to-self; only the final Send button sends via Resend. A server-controlled quote link is always appended. The demo flow never sends mail.
+- The database dispatch ledger serializes sends and uses a stable Resend Idempotency-Key to avoid duplicate send attempts. Recover ambiguous provider responses manually before retrying.
+- The Quotes admin has Draft, Sent (includes pending client response), Accepted, Declined, Cancelled, and Expired filters.
+- Bookings are confirmed from accepted quotes only when a linked invoice is **paid** and any linked contract is **signed**. The operator supplies the actual event start/end time and time zone. Overlapping confirmed bookings are rejected.
+- The Calendar admin shows confirmed bookings even before connecting to Google. Google sync is an opt-in OAuth connection to a **specific signed-in admin's primary calendar**, not a global team credential. Connect via `/calendar`, grant calendar event permission, then confirm bookings or press Sync.
+- Google refresh tokens are AES-256-GCM encrypted using `GOOGLE_TOKEN_ENCRYPTION_KEY` and stored in a service-role-only table. Changing that secret requires reconnecting accounts. Disconnecting does **not** delete any existing calendar events.
+- Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALENDAR_REDIRECT_URI` exactly matching Google Cloud OAuth web app redirect, and `GOOGLE_TOKEN_ENCRYPTION_KEY`. Enable Google Calendar API and consent scopes `https://www.googleapis.com/auth/calendar.events` and `https://www.googleapis.com/auth/userinfo.email`. Do not put client secrets in `NEXT_PUBLIC_` vars.
+- Apply new migration `0006_quote_send_calendar.sql` to the verified Castaneda database **only after** the previous migrations, with a backup. The app preview builds without applying migrations; live admin actions will not work until the migration is applied and an admin owner is enrolled.
+- Verify correct production public quote URL via `NEXT_PUBLIC_APP_URL` and sender domain via Resend `RESEND_FROM_EMAIL`. Test a quote to your own address and double-tap send before using real clients.
+- Calendar sync is currently one-way and user-triggered at booking confirmation or on Sync. It does not import Google events, auto-delete events, reconcile outside edits, or schedule reminders. Protect against overwriting manual Google changes when extending the sync engine later.
