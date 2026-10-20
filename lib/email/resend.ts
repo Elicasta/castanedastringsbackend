@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { EMAIL_TEMPLATES, renderTemplate, brandedHtml, type EmailTemplateKey } from "./templates";
 import { logCommunication } from "../communications";
+import { getEmailTemplate } from "./managed-templates";
 
 // Do not instantiate on import: Next builds pages without third-party env keys.
 let resend:Resend|null=null;
@@ -26,7 +27,7 @@ interface SendTemplateEmailParams {
  * without first logging the attempt.
  */
 export async function sendTemplateEmail(params: SendTemplateEmailParams) {
-  const tmpl = EMAIL_TEMPLATES[params.template];
+  const tmpl = await getEmailTemplate(params.template);
   const subject = renderTemplate(tmpl.subject, params.vars);
   const body = renderTemplate(tmpl.body, params.vars);
 
