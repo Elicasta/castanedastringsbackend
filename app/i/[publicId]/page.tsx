@@ -5,6 +5,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { InvoicePay } from "@/components/public/invoice-pay";
 import { formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export default async function PublicInvoicePage({
   params,
@@ -66,6 +67,7 @@ export default async function PublicInvoicePage({
             zelleName={settings?.zelle_name}
             zelleEmail={settings?.zelle_email}
             zellePhone={settings?.zelle_phone}
+            stripeEnabled={isStripeConfigured()}
           />
         ) : (
           <p className="text-center text-sm text-muted">This invoice is {invoice.status}.</p>
