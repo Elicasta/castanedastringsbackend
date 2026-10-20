@@ -140,10 +140,11 @@ export async function sendContractAction(contractId: string) {
     contract_id: contract.id,
   });
 
-  await supabase
-    .from("contracts")
-    .update({ status: "pending", sent_at: new Date().toISOString() })
-    .eq("id", contractId);
+  if(!result.success)return {error:"Agreement remains unsent: "+result.error};
+  const {error:updated}=await supabase.from("contracts")
+    .update({status:"pending",sent_at:new Date().toISOString()})
+    .eq("id",contractId).in("status",["draft","sent"]).select("id").single();
+  if(updated)return {error:"Resend accepted the agreement but its status needs attention. Do not resend yet."};
 
   await logActivity({
     action: "sent",
@@ -155,7 +156,6 @@ export async function sendContractAction(contractId: string) {
   revalidatePath(`/contracts/${contractId}`);
   revalidatePath("/contracts");
 
-  if (!result.success) return { error: "Saved, but the email failed to send: " + result.error };
   return { success: true };
 }
 
