@@ -48,3 +48,4 @@ export default async function CommunicationsPage({searchParams}:{searchParams:{v
   {!error&&pages>1&&<div className="flex justify-between items-center text-sm"><span>{page>1?<Link href={href(view,page-1)} className="font-semibold text-[#009f87]">Previous</Link>:"Previous"}</span><span>Page {page} of {pages}</span><span>{page<pages?<Link href={href(view,page+1)} className="font-semibold text-[#009f87]">Next</Link>:"Next"}</span></div>}
   <details className="bg-white rounded-xl border border-neutral-100 p-4"><summary className="font-medium text-sm cursor-pointer">Log a private note</summary><div className="pt-4"><AddNoteForm/></div></details>
  </div>;
+}
