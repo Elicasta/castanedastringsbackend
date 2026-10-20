@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { BookingConfirm } from "@/components/admin/booking-confirm";
+import { ReviseSentQuoteButton } from "@/components/admin/revise-sent-quote-button";
+import { Pencil, Lock } from "lucide-react";
 import { canConfirmBooking } from "@/lib/booking-rules";
 import { QuoteActions } from "@/components/admin/quote-actions";
 import { formatCents } from "@/lib/currency";
@@ -34,9 +36,11 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
       <PageHeader
         title={quote.title}
         description={`${quote.quote_number ?? ""} · ${quote.client?.full_name}`}
-        action={<div className="flex items-center gap-3">{quote.status==="draft"&&<Link href={`/quotes/${quote.id}/edit`} className="rounded-xl border border-brand px-4 py-2 text-brand font-semibold text-sm">Edit quote</Link>}<StatusPill status={quote.status}/></div>}
+        action={<div className="flex flex-wrap items-center justify-end gap-2">{quote.status==="draft"&&<Link href={`/quotes/${quote.id}/edit`} className="rounded-xl border border-brand px-4 py-2 text-brand font-semibold text-sm inline-flex items-center gap-2"><Pencil size={16}/> Edit</Link>}{["pending","sent"].includes(quote.status)&&<ReviseSentQuoteButton id={quote.id}/>}<StatusPill status={quote.status}/></div>}
       />
 
+      {quote.status!=="draft"&&<div className="mb-5 flex items-start gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600"><Lock size={17} className="shrink-0 mt-0.5"/>This is the saved client version of this quote. All items, notes, dates, and totals are read-only. To change a sent quote, tap Edit and explicitly create a replacement draft. Accepted quotes cannot be rewritten.</div>}
+      {quote.revision_of&&<p className="text-xs text-amber-700 mb-4">This quote is a revision of an earlier client quote. The earlier version is retained in history.</p>}
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2 space-y-4">
           <Card>
@@ -63,6 +67,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             </div>
           </Card>
 
+          {quote.notes_to_client&&<Card><h2 className="font-semibold mb-2">Message to client</h2><p className="text-sm whitespace-pre-wrap">{quote.notes_to_client}</p></Card>}
           <Card>
             <h2 className="font-semibold mb-3">Timeline</h2>
             {(events??[]).length===0?<p className="text-sm text-muted">No activity recorded yet.</p>:<ol className="space-y-3">{events?.map((e:any)=><li key={e.id} className="border-l-2 border-neutral-200 pl-4"><p className="text-sm font-medium">{e.description??e.action}</p><p className="text-xs text-muted">{formatDateTime(e.created_at)}</p></li>)}</ol>}
