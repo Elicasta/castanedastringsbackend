@@ -208,3 +208,107 @@ begin
   end if;
  end loop;
 end $$;
+
+-- Security-definer RPCs must independently check write privileges; viewer is read-only.
+create or replace function update_cs_quote_draft(
+ p_quote_id uuid, p_expected_updated_at timestamptz, p_quote jsonb
+) returns void language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; v_subtotal bigint; v_discount bigint; v_tax bigint;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status <> 'draft' then raise exception 'Only draft quotes may be edited'; end if;
+ if q.updated_at <> p_expected_updated_at then raise exception 'Quote changed in another session. Refresh and retry'; end if;
+ if coalesce(jsonb_array_length(p_quote->'items'),0)>100 then raise exception 'Too many items'; end if;
+ if exists(select 1 from jsonb_to_recordset(p_quote->'items')
+   as i(name text, quantity numeric,unit_price_cents bigint,item_kind text,range_max_cents bigint)
+   where trim(coalesce(name,''))='' or quantity<=0 or quantity>10000
+     or unit_price_cents<0 or unit_price_cents>2147483647
+     or (range_max_cents is not null and range_max_cents<unit_price_cents)
+     or item_kind not in ('standard','optional','client_selection'))
+ then raise exception 'Invalid line items'; end if;
+ if (p_quote->>'cs_project_id') is not null
+   and not exists(select 1 from cs_quote_projects where id=(p_quote->>'cs_project_id')::uuid and client_id=q.client_id)
+ then raise exception 'Project must belong to the client'; end if;
+ v_discount := greatest(0,(p_quote->>'discount_cents')::bigint);
+ v_tax := greatest(0,(p_quote->>'tax_cents')::bigint);
+ delete from quote_items where quote_id=p_quote_id;
+ insert into quote_items(quote_id,name,description,quantity,unit_price_cents,total_cents,sort_order,item_kind,selected,selection_group,range_max_cents,taxable)
+ select p_quote_id, x.name,x.description,x.quantity,x.unit_price_cents,
+   round(x.quantity*x.unit_price_cents)::integer,(x.ordinality-1)::int,
+   x.item_kind,(x.item_kind='standard'),x.selection_group,x.range_max_cents,coalesce(x.taxable,false)
+ from jsonb_to_recordset(p_quote->'items') with ordinality as x(
+   name text,description text,quantity numeric,unit_price_cents bigint,
+   item_kind text,selected boolean,selection_group text,range_max_cents bigint,taxable boolean,
+   ordinality bigint);
+ select coalesce(sum(total_cents),0) into v_subtotal from quote_items where quote_id=p_quote_id and selected;
+ if v_discount>v_subtotal then raise exception 'Discount exceeds subtotal'; end if;
+ update quotes set
+  cs_project_id=nullif(p_quote->>'cs_project_id','')::uuid,
+  title=trim(p_quote->>'title'),event_type=nullif(p_quote->>'event_type',''),
+  event_date=nullif(p_quote->>'event_date','')::date,location_name=nullif(p_quote->>'location_name',''),
+  valid_until=nullif(p_quote->>'valid_until','')::date,
+  notes_to_client=nullif(p_quote->>'notes_to_client',''),internal_notes=nullif(p_quote->>'internal_notes',''),
+  auto_create_invoice=coalesce((p_quote->>'auto_create_invoice')::boolean,true),
+  reminders_enabled=coalesce((p_quote->>'reminders_enabled')::boolean,false),
+  reminder_days_before=coalesce((p_quote->>'reminder_days_before')::integer,2),
+  subtotal_cents=v_subtotal,discount_cents=v_discount,tax_cents=v_tax,
+  total_cents=greatest(0,v_subtotal-v_discount+v_tax)
+ where id=p_quote_id;
+end $$;
+create or replace function cs_claim_quote_dispatch(
+ p_quote_id uuid, p_subject text, p_message text, p_copy_email text default null)
+returns text language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; d cs_quote_dispatches%rowtype; v_inserted text;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status <> 'draft' then raise exception 'Only unsent drafts can be emailed'; end if;
+ if not exists(select 1 from quote_items where quote_id=q.id) then raise exception 'Add an item before sending'; end if;
+ if q.valid_until is not null and q.valid_until < current_date then raise exception 'Quote expired'; end if;
+ if char_length(trim(p_subject))<3 or char_length(p_subject)>180 then raise exception 'Invalid subject'; end if;
+ if char_length(trim(p_message))<5 or char_length(p_message)>12000 then raise exception 'Invalid message'; end if;
+ insert into cs_quote_dispatches(quote_id,status,subject,message,to_email,copy_email,idempotency_key)
+ select q.id,'processing',p_subject,p_message,lower(c.email),p_copy_email,'cs-quote-'||q.id::text||'-v1'
+ from clients c where c.id=q.client_id and c.email is not null and c.email ~* '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$'
+ on conflict (quote_id) do nothing returning idempotency_key into v_inserted;
+ if v_inserted is not null then return v_inserted; end if;
+ select * into d from cs_quote_dispatches where quote_id=q.id for update;
+ if not found then raise exception 'Client has no valid email'; end if;
+ if d.status='sent' then raise exception 'This quote was already sent'; end if;
+ if d.status='processing' and d.attempted_at > now()-interval '10 minutes'
+ then raise exception 'A send attempt is already in progress'; end if;
+ -- Retries use the *original content* and provider key so an uncertain
+ -- provider response cannot send a changed message as a second email.
+ if d.subject <> p_subject or d.message <> p_message or d.copy_email is distinct from p_copy_email
+ then raise exception 'A previous attempt exists. Retry with the original message'; end if;
+ update cs_quote_dispatches set status='processing',attempted_at=now(),last_error=null where quote_id=q.id;
+ return d.idempotency_key;
+end $$;
+create or replace function cs_confirm_booking(
+ p_quote_id uuid,p_event_date date,p_start_time time,p_end_time time,p_time_zone text default 'America/New_York'
+) returns uuid language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; v_id uuid;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ if p_event_date is null or p_start_time is null or p_end_time is null or p_end_time<=p_start_time
+ then raise exception 'A valid start and end time are required'; end if;
+ if char_length(trim(p_time_zone))=0 then raise exception 'Choose a time zone'; end if;
+ perform pg_advisory_xact_lock(hashtext(p_event_date::text));
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status<>'accepted' then raise exception 'Quote must be accepted first'; end if;
+ if q.client_id is null then raise exception 'Quote is missing a client'; end if;
+ if not exists(select 1 from invoices where quote_id=q.id and status='paid')
+ then raise exception 'A paid invoice is required to confirm booking'; end if;
+ if exists(select 1 from contracts where quote_id=q.id and status <> 'signed')
+ then raise exception 'The agreement must be signed to confirm'; end if;
+ select id into v_id from cs_bookings where quote_id=q.id and status='confirmed';
+ if v_id is not null then return v_id; end if;
+ if exists(select 1 from cs_bookings where status='confirmed' and event_date=p_event_date
+   and start_time<p_end_time and end_time>p_start_time)
+ then raise exception 'A confirmed performance already overlaps this time'; end if;
+ insert into cs_bookings(quote_id,client_id,title,location,event_date,start_time,end_time,time_zone)
+ values(q.id,q.client_id,q.title,q.location_name,p_event_date,p_start_time,p_end_time,p_time_zone)
+ returning id into v_id;
+ return v_id;
+end $$;
