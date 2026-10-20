@@ -31,6 +31,11 @@ export const newInquirySchema = z.object({
 export const newQuoteSchema = z.object({
   inquiry_id: z.string().uuid().optional().nullable(),
   client_id: z.string().uuid(),
+  cs_project_id: z.string().uuid().optional().nullable(),
+  auto_create_invoice: z.boolean().default(true),
+  reminders_enabled: z.boolean().default(false),
+  reminder_days_before: z.coerce.number().int().min(1).max(30).default(2),
+  currency: z.literal("usd").default("usd"),
   title: z.string().min(1, "Title is required"),
   event_type: z.string().optional(),
   event_date: z.string().optional(),
@@ -40,7 +45,7 @@ export const newQuoteSchema = z.object({
   internal_notes: z.string().optional(),
   discount_cents: z.coerce.number().int().min(0).default(0),
   tax_cents: z.coerce.number().int().min(0).default(0),
-  items: z.array(lineItemSchema).min(1, "Add at least one line item"),
+  items: z.array(lineItemSchema).max(100),
   send: z.boolean().optional(),
 });
 
