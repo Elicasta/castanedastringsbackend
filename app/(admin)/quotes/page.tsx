@@ -16,9 +16,12 @@ export const dynamic = "force-dynamic";
 
 const TABS = [
   { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
+  { label: "Draft", value: "draft" },
+  { label: "Sent", value: "sent" },
   { label: "Accepted", value: "accepted" },
+  { label: "Declined", value: "declined" },
   { label: "Cancelled", value: "cancelled" },
+  { label: "Expired", value: "expired" },
 ];
 
 export default async function QuotesPage({
@@ -34,15 +37,20 @@ export default async function QuotesPage({
     .select("*, client:clients(*)")
     .order("created_at", { ascending: false });
 
-  if (status && status !== "all") query = query.eq("status", status);
-  if (q) query = query.or(`title.ilike.%${q}%,event_type.ilike.%${q}%`);
+  if (status === "sent") query = query.in("status", ["sent", "pending"]);
+  else if (TABS.some(tab=>tab.value===status && status!=="all")) query=query.eq("status",status!);
+  if (q) {
+    const safe = q.slice(0,80).replace(/[,.()%"\\]/g,"").trim();
+    if (safe) query = query.or(`title.ilike.%${safe}%,event_type.ilike.%${safe}%,quote_number.ilike.%${safe}%`);
+  }
 
-  const { data: quotes } = await query;
+  const { data: quotes } = await query.limit(500);
 
   return (
     <div>
       <PageHeader
         title="Quotes"
+        description="All quote drafts, deliveries, client responses, and cancellations."
         action={
           <div className="flex gap-2">
             <ButtonLink href="/quotes/templates" variant="secondary">
@@ -74,7 +82,7 @@ export default async function QuotesPage({
                 <div className="min-w-0">
                   <p className="font-medium truncate">{quote.title}</p>
                   <p className="text-sm text-muted truncate">
-                    {quote.client?.full_name} · {formatDate(quote.event_date)} · {formatCents(quote.total_cents)}
+                    {quote.quote_number??"Draft"} · {quote.client?.full_name} · {formatDate(quote.event_date)} · {formatCents(quote.total_cents)}
                   </p>
                 </div>
                 <StatusPill status={quote.status} />
