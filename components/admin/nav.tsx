@@ -67,7 +67,10 @@ function sectionOf(path:string):Section{
  return "sales";
 }
 function active(path:string,item:NavItem){
- return item.exact?path===item.href:(path===item.href||path.startsWith(item.href+"/"));
+ if(item.exact)return path===item.href;
+ if(item.href==="/quotes"&&path.startsWith("/quotes/templates"))return false;
+ if(item.href==="/contracts"&&path.startsWith("/contracts/templates"))return false;
+ return path===item.href||path.startsWith(item.href+"/");
 }
 function NavRow({item,pathname,onNavigate,compact=false}:{
  item:NavItem;pathname:string;onNavigate?:()=>void;compact?:boolean
