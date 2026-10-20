@@ -3,7 +3,7 @@ export type ItemKind = "standard" | "optional" | "client_selection";
 export type BuilderItem = {
  name:string; description?:string; quantity:number;
  unit_price_cents:number; item_kind:ItemKind;
- selected:boolean; selection_group?:string;
+ selected:boolean; selection_group?:string|null;
  range_max_cents?:number|null; taxable?:boolean;
 };
 export function quoteSubtotal(items: BuilderItem[]):number {
