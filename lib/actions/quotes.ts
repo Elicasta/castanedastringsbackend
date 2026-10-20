@@ -103,6 +103,29 @@ export async function createQuoteAction(input: unknown) {
   redirect(`/quotes/${quote.id}`);
 }
 
+/** Saves the entire draft in one SQL transaction. Concurrent tabs cannot overwrite a newer edit. */
+export async function updateQuoteDraftAction(quoteId: string, expectedUpdatedAt: string, input: unknown) {
+  const parsed = newQuoteSchema.safeParse(input);
+  if (!parsed.success) return {error:parsed.error.issues[0]?.message??"Check this quote."};
+  const supabase = createClient();
+  const {data:{user}} = await supabase.auth.getUser();
+  if(!user) return {error:"Sign in before editing quotes."};
+  const {data:existing} = await supabase.from("quotes").select("id,client_id,status").eq("id",quoteId).maybeSingle();
+  if(!existing || existing.status!=="draft" || existing.client_id!==parsed.data.client_id) return {error:"Only the original client’s draft quote can be edited."};
+  const data=parsed.data;
+  const {error}=await supabase.rpc("update_cs_quote_draft",{
+    p_quote_id:quoteId,p_expected_updated_at:expectedUpdatedAt,p_quote:data
+  });
+  if(error) return {error:error.message};
+  revalidatePath("/quotes");
+  revalidatePath(`/quotes/${quoteId}`);
+  if(data.send) {
+    const result=await sendQuoteAction(quoteId);
+    if(result?.error) return {error:result.error};
+  }
+  return {success:true};
+}
+
 export async function sendQuoteAction(quoteId: string) {
   const supabase = await createClient();
   const { data: quote, error } = await supabase
