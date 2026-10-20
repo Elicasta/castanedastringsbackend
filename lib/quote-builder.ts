@@ -1,7 +1,7 @@
 /** Cents-based quote math. Optional and client-choice lines count only when selected. */
 export type ItemKind = "standard" | "optional" | "client_selection";
 export type BuilderItem = {
- name:string; description?:string; quantity:number;
+ name:string; description?:string|null; quantity:number;
  unit_price_cents:number; item_kind:ItemKind;
  selected:boolean; selection_group?:string|null;
  range_max_cents?:number|null; taxable?:boolean;
