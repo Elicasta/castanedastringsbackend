@@ -7,6 +7,8 @@ import { Clock3, FileText } from "lucide-react";
 import { sendComposedQuoteAction } from "@/lib/actions/quote-dispatch";
 
 type Props = {
+ initialSubject?:string;
+ initialBody?:string;
  quoteId?: string;
  quoteNumber?: string|null;
  recipientName:string;
@@ -16,13 +18,13 @@ type Props = {
  onClose?:()=>void;
 };
 export function QuoteEmailComposer({
- quoteId, quoteNumber, recipientName, recipientEmail, demo=false,
+ quoteId, quoteNumber, recipientName, recipientEmail, demo=false, initialSubject, initialBody,
  cancelHref="/quotes", onClose
 }:Props){
  const router=useRouter();
  const firstName=recipientName.trim().split(/\s+/)[0] || "there";
- const [subject,setSubject]=useState(`Quote #${quoteNumber??"Draft"} from Castaneda Strings`);
- const [body,setBody]=useState(`Hi ${firstName},\n\nPlease take a moment to review your quote. Use the link below to view all the details and respond.\n\nIf you'd like to make any changes, just reply to this email.\n\nThanks,\nCastaneda Strings`);
+ const [subject,setSubject]=useState(initialSubject??`Quote #${quoteNumber??"Draft"} from Castaneda Strings`);
+ const [body,setBody]=useState(initialBody??`Hi ${firstName},\n\nPlease take a moment to review your quote. Use the link below to view all the details and respond.\n\nIf you'd like to make any changes, just reply to this email.\n\nThanks,\nCastaneda Strings`);
  const [sendCopy,setSendCopy]=useState(true);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState<string|null>(null);
