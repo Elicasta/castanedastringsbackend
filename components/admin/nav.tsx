@@ -4,11 +4,12 @@ import Link from "next/link";
 import {usePathname,useSearchParams} from "next/navigation";
 import {useEffect,useState} from "react";
 import {cn} from "@/lib/cn";
+import {logoutAction} from "@/lib/actions/auth";
 import {
   LayoutDashboard, Inbox, FileText, Receipt, FileSignature, Users,
   MessagesSquare, CalendarDays, Settings2, Mail, CreditCard,
   ScrollText, ClipboardList, SlidersHorizontal, Menu, X, ChevronRight,
-  Plus, MessageCircle, FolderOpen, type LucideIcon
+  Plus, LogOut, type LucideIcon
 } from "lucide-react";
 
 type NavItem={href:string;label:string;icon:LucideIcon;exact?:boolean;description?:string};
@@ -153,6 +154,7 @@ export function BottomNav(){
       {operations.map(item=><NavRow key={item.href} item={item} pathname={pathname} compact onNavigate={()=>setOpened(false)}/>)}
       <p className="text-[11px] px-3 uppercase tracking-widest text-neutral-500 mt-4 mb-1">Settings & templates</p>
       {configuration.map(item=><NavRow key={item.href} item={item} pathname={pathname} compact onNavigate={()=>setOpened(false)}/>)}
+      <form action={logoutAction} className="mt-4 border-t border-neutral-200 pt-3"><button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-[#59665f]"><LogOut size={18}/> Sign out</button></form>
     </div>
    </div>}
    <nav aria-label="Mobile workspaces" className="lg:hidden fixed z-50 bottom-0 inset-x-0 flex border-t border-[#e1e9e5] bg-white/95 backdrop-blur-xl pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-1">
@@ -164,7 +166,7 @@ export function BottomNav(){
      </Link>;
     })}
     <button type="button" aria-expanded={opened} aria-label="More workspaces" onClick={()=>setOpened(!opened)}
-     className={cn("flex-1 flex flex-col gap-1 items-center rounded-xl py-1.5 text-[10px] font-semibold",opened?"text-[#008b77]":"text-[#82918a]")}>
+     className={cn("flex-1 flex flex-col gap-1 items-center rounded-xl py-1.5 text-[10px] font-semibold",opened||!mobile.some(item=>active(pathname,item))?"text-[#008b77]":"text-[#82918a]")}>
       <Menu size={20}/>More
     </button>
    </nav>
