@@ -75,3 +75,15 @@ Use `.env.example` for Supabase, Resend, Stripe, and public app URL. Use verifie
 - Add real test Zelle email and phone in Payment Settings, verify only that value is displayed and copyable on a payable invoice.
 - Trigger a marketing form inquiry and ensure its client conversation appears in Inbox, reply through Resend, reply from client and verify threading + idempotency.
 - Edit default email and agreement templates and verify newly created documents use updated text while older contracts remain unchanged.
+
+## Authenticated Studio Office navigation (October 20 update)
+The **real** admin is the authenticated `/dashboard` route, not `/preview/admin` (which now redirects to `/dashboard`). The old sample admin components were deleted. The persistent desktop sidebar and mobile navigation are implemented in `components/admin/nav.tsx`, with contextual navigation in the sticky workspace header.
+
+Live workspaces:
+- Overview: `/dashboard` provides database-backed queues for new inquiries, draft quotes, incoming messages and confirmed bookings. Missing database tables show errors instead of fabricated counts.
+- Communications: `/communications` Inbox/Sent/All. Open a client conversation at `/communications/client/:id`, then reply through Resend. Inquiries and quote details link to that workspace.
+- Booking pipeline: `/inquiries`, `/quotes`, `/invoices`, `/contracts`, and `/calendar`. Each has real record views; high-volume lists are paginated, with search or status filters where supported.
+- Clients: `/clients` offers search, pagination, linked record counts and a direct conversation action.
+- Configuration: `/settings`, `/settings/payments`, `/settings/email-templates`, `/contracts/templates`, and `/quotes/templates`. Edit actions use authenticated server actions and database records, not browser-only state.
+
+Routes require a valid Supabase session plus membership in `cs_admin_members`. Vercel preview sharing does **not** bypass login. The connected Supabase project accessible to ChatGPT was not identifiable as the Castaneda Strings database; do not run migrations against unrelated named projects. Once the correct project has been verified, apply/test migrations, log in and exercise each tab against real test records.
