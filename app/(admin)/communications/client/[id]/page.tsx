@@ -5,19 +5,19 @@ import {formatDateTime} from "@/lib/dates";
 import {InboxReplyComposer} from "@/components/admin/inbox-reply-composer";
 import {ArrowLeft,Mail,MessageSquare} from "lucide-react";
 export const dynamic="force-dynamic";
-type Event={id:string;created_at:string;subject:string|null;body:string|null;direction:string;from_email:string|null;to_email:string|null;channel:string};
+type Event={id:string;inquiry_id:string|null;created_at:string;subject:string|null;body:string|null;direction:string;from_email:string|null;to_email:string|null;channel:string};
 export default async function ClientConversationPage({params}:{params:{id:string}}){
  const s=createClient();
  const {data:client}=await s.from("clients").select("id,full_name,email,phone").eq("id",params.id).maybeSingle();
  if(!client)notFound();
  const [{data:communications},{data:inquiries}]=await Promise.all([
-  s.from("communications").select("id,created_at,subject,body,direction,from_email,to_email,channel").eq("client_id",params.id).order("created_at",{ascending:false}).limit(250),
+  s.from("communications").select("id,inquiry_id,created_at,subject,body,direction,from_email,to_email,channel").eq("client_id",params.id).order("created_at",{ascending:false}).limit(250),
   s.from("inquiries").select("id,created_at,event_type,event_date,message,status").eq("client_id",params.id).order("created_at",{ascending:false}).limit(100),
  ]);
  const comms=(communications??[]) as Event[];
  const all=[
  ...comms.map(m=>({id:m.id,at:m.created_at,type:m.direction==="inbound"?"Received":m.direction==="outbound"?"Sent":"Note",subject:m.subject||"Communication",body:m.body||"",from:m.from_email,to:m.to_email,href:null as string|null})),
- ...(inquiries??[]).map(i=>({id:`inq-${i.id}`,at:i.created_at,type:"Inquiry",subject:i.event_type||"New inquiry",body:i.message||`Event: ${i.event_date||"Date not provided"} · Status: ${i.status}`,from:client.email,to:null,href:`/inquiries/${i.id}`}))
+ ...(inquiries??[]).filter(i=>!comms.some(m=>m.inquiry_id===i.id&&m.direction==="inbound")).map(i=>({id:`inq-${i.id}`,at:i.created_at,type:"Inquiry",subject:i.event_type||"New inquiry",body:i.message||`Event: ${i.event_date||"Date not provided"} · Status: ${i.status}`,from:client.email,to:null,href:`/inquiries/${i.id}`}))
  ].sort((a,b)=>b.at.localeCompare(a.at));
  const latestInbound=comms.find(m=>m.direction==="inbound");
  const sender=process.env.RESEND_FROM_EMAIL||"";
