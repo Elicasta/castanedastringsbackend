@@ -54,7 +54,8 @@ export async function generateContractFromQuoteAction(quoteId: string) {
     .from("contract_templates")
     .select("*")
     .eq("status", "active")
-    .order("created_at", { ascending: true })
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!template) return null; // no default template — that's fine, contracts are optional
