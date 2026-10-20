@@ -60,7 +60,7 @@ export async function sendComposedQuoteAction(input: unknown) {
         "Idempotency-Key": String(idempotencyKey),
       },
       body: JSON.stringify({
-        from, to: [recipient], ...(cc ? { cc: [cc] } : {}),
+        from, to: [recipient], ...(cc ? { bcc: [cc] } : {}),
         subject, text: fullBody, html: brandedHtml(subject, fullBody),
       }),
     });
