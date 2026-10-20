@@ -42,7 +42,7 @@ function GroupNav({activeId,close,compact=false}:{activeId:string;close:()=>void
  return <nav aria-label="Studio Office sections" className="space-y-3">
   {groups.map(group=>{
    const active=group.items.some(item=>item.id===activeId);
-   const isOpen=expanded[group.id]||active;
+   const isOpen=expanded[group.id]!==false;
    return <section key={group.id} aria-label={group.label}>
     <button type="button" aria-expanded={isOpen} onClick={()=>setExpanded(old=>({...old,[group.id]:!isOpen}))}
      className={"flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest "+(active?"text-[#087c68]":"text-[#829087]")}>
