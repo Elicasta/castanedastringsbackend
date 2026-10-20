@@ -1,0 +1,25 @@
+name: Castaneda admin checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/castaneda-mobile-quotes-flow]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
