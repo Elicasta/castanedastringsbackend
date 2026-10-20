@@ -90,17 +90,8 @@ export async function createQuoteAction(input: unknown) {
     description: `Quote ${quote_number} created`,
   });
 
-  if (data.send) {
-    try {
-      await sendQuoteAction(quote.id);
-    } catch {
-      // creation already succeeded — if the send fails, the admin can still
-      // hit Send from the quote page. Don't block on it here.
-    }
-  }
-
   revalidatePath("/quotes");
-  redirect(`/quotes/${quote.id}`);
+  return {success:true, quoteId:quote.id};
 }
 
 /** Saves the entire draft in one SQL transaction. Concurrent tabs cannot overwrite a newer edit. */
@@ -119,10 +110,6 @@ export async function updateQuoteDraftAction(quoteId: string, expectedUpdatedAt:
   if(error) return {error:error.message};
   revalidatePath("/quotes");
   revalidatePath(`/quotes/${quoteId}`);
-  if(data.send) {
-    const result=await sendQuoteAction(quoteId);
-    if(result?.error) return {error:result.error};
-  }
   return {success:true};
 }
 
