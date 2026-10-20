@@ -125,3 +125,16 @@ Performer: {{business_name}}
 Date of electronic signature: Recorded at signing.
 ',true)
 on conflict do nothing;
+
+create or replace function cs_select_default_contract_template(p_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if not exists(select 1 from cs_admin_members where auth_user_id=auth.uid() and role in ('owner','admin'))
+ then raise exception 'Admin permission required'; end if;
+ if not exists(select 1 from contract_templates where id=p_id and status='active')
+ then raise exception 'Active agreement template required'; end if;
+ update contract_templates set is_default=false where is_default=true;
+ update contract_templates set is_default=true where id=p_id;
+end $$;
+revoke all on function cs_select_default_contract_template(uuid) from public,anon;
+grant execute on function cs_select_default_contract_template(uuid) to authenticated;
