@@ -140,7 +140,7 @@ export function brandedHtml(subject: string, plainBody: string): string {
       const trimmed = block.trim();
       // A block that's nothing but a URL becomes a real button, not plain text.
       if (/^https?:\/\/\S+$/.test(trimmed)) {
-        return `<p style="margin:0 0 16px 0;"><a href="${trimmed}" style="display:inline-block;background:#0f6e5e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">View it →</a></p>`;
+        return `<p style="margin:0 0 16px 0;"><a href="${escapeHtml(trimmed)}" style="display:inline-block;background:#0f6e5e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">View it →</a></p>`;
       }
       const withBreaks = block
         .split("\n")
@@ -177,7 +177,9 @@ function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\x27/g, "&#39;");
 }
 
 function linkify(text: string): string {
