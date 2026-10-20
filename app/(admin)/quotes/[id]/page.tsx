@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
+import { BookingConfirm } from "@/components/admin/booking-confirm";
 import { QuoteActions } from "@/components/admin/quote-actions";
 import { formatCents } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/dates";
@@ -24,6 +25,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
 
   const { data: invoice } = await supabase.from("invoices").select("id, public_id, status").eq("quote_id", id).maybeSingle();
   const { data: contract } = await supabase.from("contracts").select("id, public_id, status").eq("quote_id", id).maybeSingle();
+  const {data: existingBooking}=await supabase.from("cs_bookings").select("id").eq("quote_id",id).eq("status","confirmed").maybeSingle();
   const { data: events } = await supabase.from("activity_logs").select("id,action,description,created_at").eq("entity_type","quote").eq("entity_id",id).order("created_at",{ascending:false}).limit(30);
 
   return (
@@ -101,6 +103,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             <h2 className="font-semibold mb-3">Actions</h2>
             <QuoteActions quoteId={quote.id} status={quote.status} />
           </Card>
+          {quote.status==="accepted"&&<Card><h2 className="font-semibold mb-3">Confirmed booking</h2><BookingConfirm quoteId={quote.id} eventDate={quote.event_date} eligible={invoice?.status==="paid" && (!contract || contract.status==="signed")} existingBooking={existingBooking}/></Card>}
           <Card><h2 className="font-semibold mb-2">Document settings</h2><p className="text-sm">Invoice on acceptance: {quote.auto_create_invoice?"On":"Off"}</p><p className="text-sm">Expiry: {quote.valid_until?formatDate(quote.valid_until):"Off"}</p><p className="text-sm">Reminders: {quote.reminders_enabled?"Enabled":"Off"}</p><p className="text-sm text-muted">Currency: {quote.currency?.toUpperCase()??"USD"}</p></Card>
           <p className="text-xs text-muted px-1">Created {formatDateTime(quote.created_at)}</p>
         </div>
