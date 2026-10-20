@@ -38,7 +38,6 @@ const BOTTOM_LINKS = [
 
 const MORE_LINKS = [
   { href: "/contracts", label: "Contracts", icon: FileSignature },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/contracts/templates", label: "Contract Templates", icon: FileSignature },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/communications", label: "Communications", icon: MessageSquare },
