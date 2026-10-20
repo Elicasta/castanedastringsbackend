@@ -34,4 +34,4 @@ export async function middleware(request: NextRequest) {
   }
   return response;
 }
-export const config = { matcher: ["/dashboard/:path*", "/inquiries/:path*", "/quotes/:path*", "/invoices/:path*", "/contracts/:path*", "/clients/:path*", "/communications/:path*", "/settings/:path*", "/admin/:path*"] };
+export const config = { matcher: ["/dashboard/:path*", "/inquiries/:path*", "/quotes/:path*", "/invoices/:path*", "/contracts/:path*", "/clients/:path*", "/communications/:path*", "/settings/:path*", "/calendar/:path*", "/admin/:path*"] };
