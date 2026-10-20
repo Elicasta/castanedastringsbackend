@@ -26,6 +26,12 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
+  const {data:member,error} = await supabase.from("cs_admin_members").select("auth_user_id").eq("auth_user_id",user.id).maybeSingle();
+  if (error || !member) {
+    const url = new URL("/login",request.url);
+    url.searchParams.set("error","This account is not authorized for Castaneda Strings admin.");
+    return NextResponse.redirect(url);
+  }
   return response;
 }
 export const config = { matcher: ["/dashboard/:path*", "/inquiries/:path*", "/quotes/:path*", "/invoices/:path*", "/contracts/:path*", "/clients/:path*", "/communications/:path*", "/settings/:path*", "/admin/:path*"] };
