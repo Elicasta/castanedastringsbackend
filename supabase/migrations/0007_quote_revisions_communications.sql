@@ -1,0 +1,314 @@
+-- 0007: safe quote revisions, admin communications inbox, editable emails and default contract selection.
+-- Apply only to a verified Castaneda Strings database after 0006.
+alter table quotes add column if not exists revision_of uuid references quotes(id) on delete set null;
+create index if not exists cs_quote_revision_idx on quotes(revision_of);
+alter table contract_templates add column if not exists is_default boolean not null default false;
+create unique index if not exists cs_default_agreement_one on contract_templates(is_default) where is_default;
+
+create table if not exists cs_email_templates(
+ template_key text primary key check(template_key in ('quote_sent','invoice_sent','quote_reminder','payment_reminder')),
+ subject text not null check(length(trim(subject))>=3),
+ body text not null check(length(trim(body))>=5),
+ updated_at timestamptz not null default now()
+);
+alter table cs_email_templates enable row level security;
+create policy cs_email_templates_read on cs_email_templates for select using(cs_is_admin());
+create policy cs_email_templates_write on cs_email_templates for all
+ using(exists(select 1 from cs_admin_members where auth_user_id=auth.uid() and role in ('owner','admin')))
+ with check(exists(select 1 from cs_admin_members where auth_user_id=auth.uid() and role in ('owner','admin')));
+insert into cs_email_templates(template_key,subject,body) values
+('quote_sent','Quote {{quote_number}} from Castaneda Strings',E'Hi {{client_first_name}},\n\nPlease review the quote for your {{event_type}} on {{event_date}}. Let us know if you have any questions or changes.\n\nThanks,\nCastaneda Strings'),
+('invoice_sent','Your invoice {{invoice_number}} from Castaneda Strings',E'Hi {{client_first_name}},\n\nYour invoice for {{event_type}} is ready. The total is {{total}}, due {{due_date}}.\n\n{{invoice_link}}\n\nThanks,\nCastaneda Strings'),
+('quote_reminder','Reminder: quote {{quote_number}}','Hi {{client_first_name}},\n\nA friendly reminder to review your quote:\n{{quote_link}}\n\nCastaneda Strings'),
+('payment_reminder','Payment reminder: {{invoice_number}}','Hi {{client_first_name}},\n\nYour invoice {{invoice_number}} has a remaining balance of {{total}}.\n{{invoice_link}}\n\nCastaneda Strings')
+on conflict(template_key) do nothing;
+
+alter table communications add column if not exists from_email text;
+alter table communications add column if not exists to_email text;
+alter table communications add column if not exists reply_to_id uuid references communications(id) on delete set null;
+alter table communications add column if not exists message_id_header text;
+alter table communications add column if not exists reply_request_id uuid;
+create unique index if not exists cs_communications_resend_unique
+ on communications(resend_email_id) where resend_email_id is not null;
+create unique index if not exists cs_communications_reply_request_unique
+ on communications(reply_request_id) where reply_request_id is not null;
+create index if not exists cs_communications_direction_created on communications(direction,created_at desc);
+create index if not exists cs_communications_inquiry on communications(inquiry_id);
+-- No direct anonymous access to this table. Earlier cs_staff_access remains in force.
+
+create or replace function cs_begin_quote_revision(p_quote_id uuid)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare original quotes%rowtype; new_id uuid; v_number text;
+begin
+ if not cs_is_admin() or not exists (select 1 from cs_admin_members
+   where auth_user_id=auth.uid() and role in ('owner','admin','staff'))
+ then raise exception 'Not authorized to revise quotes'; end if;
+ select * into original from quotes where id=p_quote_id for update;
+ if not found or original.status not in ('sent','pending') then
+   raise exception 'Only sent or awaiting-response quotes can be revised'; end if;
+ if exists (select 1 from quotes where revision_of=original.id and status='draft')
+ then raise exception 'An unsent revision already exists. Open it from Quotes.'; end if;
+ -- Replace the old public acceptance link immediately. Previous quote retained read-only.
+ update quotes set status='cancelled',cancelled_at=now() where id=original.id;
+ v_number:=next_quote_number();
+ insert into quotes (
+  public_id, inquiry_id, client_id, cs_project_id, revision_of, quote_number,
+  title, event_type,event_date,location_name,subtotal_cents,discount_cents,
+  tax_cents,total_cents,valid_until,notes_to_client,internal_notes,
+  auto_create_invoice,reminders_enabled,reminder_days_before,currency,status
+ ) values (
+  'q_'||encode(gen_random_bytes(18),'hex'),original.inquiry_id,original.client_id,
+  original.cs_project_id,original.id,v_number,original.title,original.event_type,
+  original.event_date,original.location_name,original.subtotal_cents,
+  original.discount_cents,original.tax_cents,original.total_cents,original.valid_until,
+  original.notes_to_client,original.internal_notes,original.auto_create_invoice,
+  original.reminders_enabled,original.reminder_days_before,original.currency,'draft'
+ ) returning id into new_id;
+ insert into quote_items(quote_id,name,description,quantity,unit_price_cents,
+   total_cents,sort_order,item_kind,selected,selection_group,range_max_cents,taxable)
+ select new_id,name,description,quantity,unit_price_cents,total_cents,sort_order,
+   item_kind,selected,selection_group,range_max_cents,taxable
+ from quote_items where quote_id=original.id;
+ insert into activity_logs(action,entity_type,entity_id,description)
+ values ('revised','quote',original.id,'Quote cancelled and replaced by draft '||v_number);
+ return new_id;
+end $$;
+revoke all on function cs_begin_quote_revision(uuid) from public,anon;
+grant execute on function cs_begin_quote_revision(uuid) to authenticated;
+
+-- Seed a separately identifiable default template. Existing signed contract bodies are untouched.
+insert into contract_templates(name,status,body,is_default) values
+('Castaneda Strings Performance Agreement v2','active','CASTANEDA STRINGS | LIVE PERFORMANCE AGREEMENT
+
+1. PARTIES AND EVENT
+This performance agreement ("Agreement") is between {{business_name}} ("Performer") and {{client_name}} ("Client").
+Client email: {{client_email}}
+Event: {{event_type}}
+Date: {{event_date}}
+Scheduled performance time: {{event_time}}
+Venue / location: {{location}}
+Accepted quote total: {{quote_total}}
+Related invoice: {{invoice_number}}
+
+2. SCOPE OF SERVICES
+Performer will provide the musicians, musical services, approximate set length, and agreed repertoire described in the accepted quote and any written schedule approved by both parties. Services not included in the quote require written approval and may result in additional charges.
+
+3. DATE RESERVATION AND PAYMENT
+A date is reserved only when the accepted quote, required executed agreement, and required payment have been received and acknowledged by Performer. The specific retainer, payment schedule, and remaining balance are stated in the accepted quote and invoice. No additional forfeiture, late fee, or refund restriction is created here unless specifically disclosed and agreed to in writing.
+
+4. EVENT SCHEDULE AND CLIENT COORDINATION
+Client will supply the final venue, event coordinator contact, arrival/access instructions, parking and loading details, performance schedule, and any special song requests in reasonable time. Material changes to times, location, lineup, or length must be approved in writing. Performer will make reasonable efforts to accommodate changes but cannot promise availability.
+
+5. VENUE, EQUIPMENT, AND SAFE CONDITIONS
+Client is responsible for arranging a safe, accessible performance space and obtaining venue permissions. If amplification or electrical power is required by the accepted quote, Client will provide safe, reliable power and approved placement unless otherwise agreed. Outdoor performance requires suitable shelter from direct sun, precipitation, and unsafe conditions. Performer may stop or decline unsafe performance without an obligation to expose people or equipment to harm; payment/refund consequences will be handled according to applicable law and the parties'' written terms.
+
+6. TRAVEL, PARKING, AND ADDITIONAL COSTS
+Any agreed travel, lodging, parking, access, rehearsal, overtime, or equipment charges must be itemized in the quote or accepted in writing before they are incurred. No unapproved additional fee is due solely under this clause.
+
+7. CANCELLATIONS AND POSTPONEMENTS
+Cancellation or postponement requests must be made in writing. Refunds, application of existing payments to a new date, and the availability of a replacement date are determined by the specific written booking/payment terms accepted by the parties and applicable law. A new date or materially changed services require mutual written confirmation. This Agreement does not by itself impose a blanket nonrefundable payment.
+
+8. EVENTS OUTSIDE REASONABLE CONTROL
+If an event beyond a party''s reasonable control prevents safe or lawful performance (including severe weather, emergency, government restriction, illness affecting essential personnel, or venue closure), the parties will communicate promptly and work in good faith toward rescheduling or a fair resolution of payments for services not performed, subject to applicable law. No party is required to perform illegally or unsafely.
+
+9. SUBSTITUTION AND PERFORMANCE PRACTICES
+Performer may suggest a qualified substitute musician only with Client''s prior approval when a booked musician is unavailable. Music selection and arrangements will be coordinated in advance where practical. Unless explicitly purchased, recording, broadcast, distribution, and commercial use rights are not granted by this Agreement.
+
+10. CHANGES, DISPUTES, AND ENTIRE AGREEMENT
+Any amendment to the scope, timing, fees, or other material terms must be agreed to in writing by both parties. The accepted quote, invoice terms, and this Agreement form the parties'' booking records. If provisions conflict, the more specific subsequently accepted written term controls to the extent permitted by law. Florida law applies where applicable. Nothing here waives rights that cannot legally be waived.
+
+11. ACKNOWLEDGEMENT
+By signing, the Client confirms review of the scope, event details, financial terms, and the terms above, and agrees to use electronic records and signatures for this booking.
+
+Client: {{client_name}}
+Performer: {{business_name}}
+Date of electronic signature: Recorded at signing.
+',true)
+on conflict do nothing;
+
+create or replace function cs_select_default_contract_template(p_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if not exists(select 1 from cs_admin_members where auth_user_id=auth.uid() and role in ('owner','admin'))
+ then raise exception 'Admin permission required'; end if;
+ if not exists(select 1 from contract_templates where id=p_id and status='active')
+ then raise exception 'Active agreement template required'; end if;
+ update contract_templates set is_default=false where is_default=true;
+ update contract_templates set is_default=true where id=p_id;
+end $$;
+revoke all on function cs_select_default_contract_template(uuid) from public,anon;
+grant execute on function cs_select_default_contract_template(uuid) to authenticated;
+
+-- A single query for an inbox of client conversations, including form submissions.
+create or replace function cs_inbox_threads(
+ p_view text default 'inbox', p_query text default '', p_limit integer default 40,p_offset integer default 0
+) returns table (
+ client_id uuid,full_name text,email text,latest_at timestamptz,
+ last_subject text,last_body text,last_direction text,
+ inquiry_count bigint,message_count bigint,total_count bigint
+) language sql stable security definer set search_path=public as $$
+with entries as (
+ select m.client_id,m.created_at as happened_at,coalesce(m.subject,'Email') as subject,
+  coalesce(m.body,'') as body,m.direction as direction,
+  false as is_inquiry
+ from communications m where m.client_id is not null
+ union all
+ select i.client_id,i.created_at,coalesce(i.event_type,'New inquiry'),
+  coalesce(i.message,''),'inbound',true
+ from inquiries i where i.client_id is not null
+),
+grouped as (
+ select e.client_id,max(e.happened_at) as updated,
+ count(*) filter(where e.is_inquiry) as inquiries,
+ count(*) filter(where not e.is_inquiry) as messages,
+ bool_or(e.direction='inbound') as has_inbound,
+ bool_or(e.direction='outbound') as has_outbound
+ from entries e group by e.client_id
+),
+summary as (
+ select g.*,c.full_name,c.email,
+ (select e.subject from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as subject,
+ (select e.body from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as body,
+ (select e.direction from entries e where e.client_id=g.client_id order by e.happened_at desc limit 1) as direction
+ from grouped g join clients c on c.id=g.client_id
+ where (p_view='all' or (p_view='sent' and g.has_outbound)
+        or (p_view='inbox' and g.has_inbound))
+ and (p_query='' or c.full_name ilike '%'||p_query||'%' or c.email ilike '%'||p_query||'%')
+)
+select s.client_id,s.full_name,s.email,s.updated,s.subject,s.body,s.direction,
+ s.inquiries,s.messages,count(*) over()
+from summary s
+where cs_is_admin()
+order by s.updated desc,s.client_id
+limit least(greatest(p_limit,1),100) offset greatest(p_offset,0)
+$$;
+revoke all on function cs_inbox_threads(text,text,integer,integer) from public,anon;
+grant execute on function cs_inbox_threads(text,text,integer,integer) to authenticated;
+
+-- Read-only viewer roles cannot edit clients, quotes, invoices, agreements or communications,
+-- even by calling Supabase REST directly. All writes require staff/admin/owner.
+create or replace function cs_can_write()
+returns boolean language sql stable security definer set search_path=public as $$
+ select exists(select 1 from cs_admin_members
+  where auth_user_id=auth.uid() and role in ('owner','admin','staff'))
+$$;
+revoke all on function cs_can_write() from public,anon;
+grant execute on function cs_can_write() to authenticated;
+do $$
+declare table_name text;
+begin
+ foreach table_name in array ARRAY['clients','inquiries','quotes','quote_items',
+   'invoices','invoice_items','contracts','contract_templates','quote_templates',
+   'communications','settings','activity_logs','email_templates','cs_quote_projects']
+ loop
+  if to_regclass('public.'||table_name) is not null then
+   execute format('drop policy if exists cs_staff_access on public.%I',table_name);
+   execute format('create policy cs_member_read on public.%I for select using (cs_is_admin())',table_name);
+   execute format('create policy cs_member_write on public.%I for all using (cs_can_write()) with check (cs_can_write())',table_name);
+  end if;
+ end loop;
+end $$;
+
+-- Security-definer RPCs must independently check write privileges; viewer is read-only.
+create or replace function update_cs_quote_draft(
+ p_quote_id uuid, p_expected_updated_at timestamptz, p_quote jsonb
+) returns void language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; v_subtotal bigint; v_discount bigint; v_tax bigint;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status <> 'draft' then raise exception 'Only draft quotes may be edited'; end if;
+ if q.updated_at <> p_expected_updated_at then raise exception 'Quote changed in another session. Refresh and retry'; end if;
+ if coalesce(jsonb_array_length(p_quote->'items'),0)>100 then raise exception 'Too many items'; end if;
+ if exists(select 1 from jsonb_to_recordset(p_quote->'items')
+   as i(name text, quantity numeric,unit_price_cents bigint,item_kind text,range_max_cents bigint)
+   where trim(coalesce(name,''))='' or quantity<=0 or quantity>10000
+     or unit_price_cents<0 or unit_price_cents>2147483647
+     or (range_max_cents is not null and range_max_cents<unit_price_cents)
+     or item_kind not in ('standard','optional','client_selection'))
+ then raise exception 'Invalid line items'; end if;
+ if (p_quote->>'cs_project_id') is not null
+   and not exists(select 1 from cs_quote_projects where id=(p_quote->>'cs_project_id')::uuid and client_id=q.client_id)
+ then raise exception 'Project must belong to the client'; end if;
+ v_discount := greatest(0,(p_quote->>'discount_cents')::bigint);
+ v_tax := greatest(0,(p_quote->>'tax_cents')::bigint);
+ delete from quote_items where quote_id=p_quote_id;
+ insert into quote_items(quote_id,name,description,quantity,unit_price_cents,total_cents,sort_order,item_kind,selected,selection_group,range_max_cents,taxable)
+ select p_quote_id, x.name,x.description,x.quantity,x.unit_price_cents,
+   round(x.quantity*x.unit_price_cents)::integer,(x.ordinality-1)::int,
+   x.item_kind,(x.item_kind='standard'),x.selection_group,x.range_max_cents,coalesce(x.taxable,false)
+ from jsonb_to_recordset(p_quote->'items') with ordinality as x(
+   name text,description text,quantity numeric,unit_price_cents bigint,
+   item_kind text,selected boolean,selection_group text,range_max_cents bigint,taxable boolean,
+   ordinality bigint);
+ select coalesce(sum(total_cents),0) into v_subtotal from quote_items where quote_id=p_quote_id and selected;
+ if v_discount>v_subtotal then raise exception 'Discount exceeds subtotal'; end if;
+ update quotes set
+  cs_project_id=nullif(p_quote->>'cs_project_id','')::uuid,
+  title=trim(p_quote->>'title'),event_type=nullif(p_quote->>'event_type',''),
+  event_date=nullif(p_quote->>'event_date','')::date,location_name=nullif(p_quote->>'location_name',''),
+  valid_until=nullif(p_quote->>'valid_until','')::date,
+  notes_to_client=nullif(p_quote->>'notes_to_client',''),internal_notes=nullif(p_quote->>'internal_notes',''),
+  auto_create_invoice=coalesce((p_quote->>'auto_create_invoice')::boolean,true),
+  reminders_enabled=coalesce((p_quote->>'reminders_enabled')::boolean,false),
+  reminder_days_before=coalesce((p_quote->>'reminder_days_before')::integer,2),
+  subtotal_cents=v_subtotal,discount_cents=v_discount,tax_cents=v_tax,
+  total_cents=greatest(0,v_subtotal-v_discount+v_tax)
+ where id=p_quote_id;
+end $$;
+create or replace function cs_claim_quote_dispatch(
+ p_quote_id uuid, p_subject text, p_message text, p_copy_email text default null)
+returns text language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; d cs_quote_dispatches%rowtype; v_inserted text;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status <> 'draft' then raise exception 'Only unsent drafts can be emailed'; end if;
+ if not exists(select 1 from quote_items where quote_id=q.id) then raise exception 'Add an item before sending'; end if;
+ if q.valid_until is not null and q.valid_until < current_date then raise exception 'Quote expired'; end if;
+ if char_length(trim(p_subject))<3 or char_length(p_subject)>180 then raise exception 'Invalid subject'; end if;
+ if char_length(trim(p_message))<5 or char_length(p_message)>12000 then raise exception 'Invalid message'; end if;
+ insert into cs_quote_dispatches(quote_id,status,subject,message,to_email,copy_email,idempotency_key)
+ select q.id,'processing',p_subject,p_message,lower(c.email),p_copy_email,'cs-quote-'||q.id::text||'-v1'
+ from clients c where c.id=q.client_id and c.email is not null and c.email ~* '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$'
+ on conflict (quote_id) do nothing returning idempotency_key into v_inserted;
+ if v_inserted is not null then return v_inserted; end if;
+ select * into d from cs_quote_dispatches where quote_id=q.id for update;
+ if not found then raise exception 'Client has no valid email'; end if;
+ if d.status='sent' then raise exception 'This quote was already sent'; end if;
+ if d.status='processing' and d.attempted_at > now()-interval '10 minutes'
+ then raise exception 'A send attempt is already in progress'; end if;
+ -- Retries use the *original content* and provider key so an uncertain
+ -- provider response cannot send a changed message as a second email.
+ if d.subject <> p_subject or d.message <> p_message or d.copy_email is distinct from p_copy_email
+ then raise exception 'A previous attempt exists. Retry with the original message'; end if;
+ update cs_quote_dispatches set status='processing',attempted_at=now(),last_error=null where quote_id=q.id;
+ return d.idempotency_key;
+end $$;
+create or replace function cs_confirm_booking(
+ p_quote_id uuid,p_event_date date,p_start_time time,p_end_time time,p_time_zone text default 'America/New_York'
+) returns uuid language plpgsql security definer set search_path=public as $$
+declare q quotes%rowtype; v_id uuid;
+begin
+ if not cs_can_write() then raise exception 'Not authorized'; end if;
+ if p_event_date is null or p_start_time is null or p_end_time is null or p_end_time<=p_start_time
+ then raise exception 'A valid start and end time are required'; end if;
+ if char_length(trim(p_time_zone))=0 then raise exception 'Choose a time zone'; end if;
+ perform pg_advisory_xact_lock(hashtext(p_event_date::text));
+ select * into q from quotes where id=p_quote_id for update;
+ if not found or q.status<>'accepted' then raise exception 'Quote must be accepted first'; end if;
+ if q.client_id is null then raise exception 'Quote is missing a client'; end if;
+ if not exists(select 1 from invoices where quote_id=q.id and status='paid')
+ then raise exception 'A paid invoice is required to confirm booking'; end if;
+ if exists(select 1 from contracts where quote_id=q.id and status <> 'signed')
+ then raise exception 'The agreement must be signed to confirm'; end if;
+ select id into v_id from cs_bookings where quote_id=q.id and status='confirmed';
+ if v_id is not null then return v_id; end if;
+ if exists(select 1 from cs_bookings where status='confirmed' and event_date=p_event_date
+   and start_time<p_end_time and end_time>p_start_time)
+ then raise exception 'A confirmed performance already overlaps this time'; end if;
+ insert into cs_bookings(quote_id,client_id,title,location,event_date,start_time,end_time,time_zone)
+ values(q.id,q.client_id,q.title,q.location_name,p_event_date,p_start_time,p_end_time,p_time_zone)
+ returning id into v_id;
+ return v_id;
+end $$;

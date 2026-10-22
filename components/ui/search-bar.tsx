@@ -14,6 +14,7 @@ export function SearchBar({ placeholder = "Search..." }: { placeholder?: string 
   function update(next: string) {
     setValue(next);
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (next) params.set("q", next);
     else params.delete("q");
     startTransition(() => router.replace(`${pathname}?${params.toString()}`));

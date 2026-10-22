@@ -10,7 +10,7 @@ import { formatCents } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { canTransitionInvoice, InvalidTransitionError } from "@/lib/status";
-import { stripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { invoiceUrl, portalUrl, adminInvoiceUrl } from "@/lib/urls";
 import { revalidatePath } from "next/cache";
 
@@ -122,7 +122,11 @@ export async function sendInvoiceAction(invoiceId: string) {
     invoice_id: invoice.id,
   });
 
-  await supabase.from("invoices").update({ status: "payment_pending" }).eq("id", invoiceId);
+  if(!result.success)return {error:"Invoice remains unsent: "+result.error};
+  const {error:updated}=await supabase.from("invoices")
+    .update({status:"payment_pending"}).eq("id",invoiceId)
+    .in("status",["draft","sent"]).select("id").single();
+  if(updated)return {error:"Resend accepted the invoice, but its status requires attention. Do not resend yet."};
 
   await logActivity({
     action: "sent",
@@ -134,7 +138,6 @@ export async function sendInvoiceAction(invoiceId: string) {
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
 
-  if (!result.success) return { error: "Invoice saved, but the email failed to send: " + result.error };
   return { success: true };
 }
 
@@ -244,7 +247,7 @@ export async function createInvoiceCheckoutSessionPublicAction(invoicePublicId: 
     return { error: "This invoice can't be paid right now." };
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
     line_items: [

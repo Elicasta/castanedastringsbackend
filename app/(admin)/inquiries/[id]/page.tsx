@@ -6,7 +6,8 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { ButtonLink } from "@/components/ui/button";
 import { InquiryActions } from "@/components/admin/inquiry-actions";
 import { formatDate, formatDateTime } from "@/lib/dates";
-import { FileText } from "lucide-react";
+import { FileText,MessageSquare } from "lucide-react";
+import Link from "next/link";
 
 // Admin tool reading live data — never serve a cached/stale version of this page.
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         title={inquiry.client?.full_name ?? "Inquiry"}
         description={`${inquiry.event_type ?? "Event type TBD"} · ${formatDate(inquiry.event_date)}`}
-        action={<StatusPill status={inquiry.status} />}
+        action={<div className="flex flex-wrap items-center gap-2">{inquiry.client_id&&<Link href={`/communications/client/${inquiry.client_id}`} className="inline-flex items-center gap-2 rounded-xl bg-[#008b77] text-white px-3 py-2 text-sm font-semibold"><MessageSquare size={16}/> Reply</Link>}<StatusPill status={inquiry.status}/></div>}
       />
 
       <div className="grid sm:grid-cols-3 gap-4">

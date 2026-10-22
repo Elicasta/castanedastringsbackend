@@ -1,0 +1,1 @@
+# Archived EC Creative Studios migrations\n\nThese migrations belong to the separate EC Creative Studios photography product and are **not** applied to Castaneda Strings. They are preserved for provenance only. Do not execute them against the Castaneda Strings database.\n

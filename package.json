@@ -1,5 +1,5 @@
 {
-  "name": "eccs-booking-os",
+  "name": "castaneda-strings-admin",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
-    "seed": "psql $DATABASE_URL -f supabase/seed/seed.sql"
+    "seed": "echo 'Castaneda quote templates are seeded by migration 0002'",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -30,7 +31,8 @@
     "nanoid": "5.0.7",
     "clsx": "2.1.1",
     "react-hook-form": "7.52.2",
-    "@hookform/resolvers": "3.9.0"
+    "@hookform/resolvers": "3.9.0",
+    "lucide-react": "0.468.0"
   },
   "devDependencies": {
     "typescript": "5.5.4",

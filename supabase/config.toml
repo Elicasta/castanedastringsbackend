@@ -1,10 +1,5 @@
-project_id = "eccs-booking-os"
-
+project_id = "castaneda-strings-admin"
 [db]
 major_version = 15
-
 [api]
-enabled = true
-
-[studio]
 enabled = true

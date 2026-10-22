@@ -8,6 +8,11 @@ export const lineItemSchema = z.object({
   description: z.string().optional().nullable(),
   quantity: z.coerce.number().positive("Quantity must be greater than 0"),
   unit_price_cents: z.coerce.number().int().min(0, "Price can't be negative"),
+  item_kind: z.enum(["standard", "optional", "client_selection"]).default("standard"),
+  selected: z.boolean().default(true),
+  selection_group: z.string().max(80).optional().nullable(),
+  range_max_cents: z.coerce.number().int().min(0).optional().nullable(),
+  taxable: z.boolean().default(false),
 });
 
 export const newInquirySchema = z.object({
@@ -31,6 +36,11 @@ export const newInquirySchema = z.object({
 export const newQuoteSchema = z.object({
   inquiry_id: z.string().uuid().optional().nullable(),
   client_id: z.string().uuid(),
+  cs_project_id: z.string().uuid().optional().nullable(),
+  auto_create_invoice: z.boolean().default(true),
+  reminders_enabled: z.boolean().default(false),
+  reminder_days_before: z.coerce.number().int().min(1).max(30).default(2),
+  currency: z.literal("usd").default("usd"),
   title: z.string().min(1, "Title is required"),
   event_type: z.string().optional(),
   event_date: z.string().optional(),
@@ -40,7 +50,7 @@ export const newQuoteSchema = z.object({
   internal_notes: z.string().optional(),
   discount_cents: z.coerce.number().int().min(0).default(0),
   tax_cents: z.coerce.number().int().min(0).default(0),
-  items: z.array(lineItemSchema).min(1, "Add at least one line item"),
+  items: z.array(lineItemSchema).max(100),
   send: z.boolean().optional(),
 });
 

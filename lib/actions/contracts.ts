@@ -54,7 +54,8 @@ export async function generateContractFromQuoteAction(quoteId: string) {
     .from("contract_templates")
     .select("*")
     .eq("status", "active")
-    .order("created_at", { ascending: true })
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!template) return null; // no default template — that's fine, contracts are optional
@@ -139,10 +140,11 @@ export async function sendContractAction(contractId: string) {
     contract_id: contract.id,
   });
 
-  await supabase
-    .from("contracts")
-    .update({ status: "pending", sent_at: new Date().toISOString() })
-    .eq("id", contractId);
+  if(!result.success)return {error:"Agreement remains unsent: "+result.error};
+  const {error:updated}=await supabase.from("contracts")
+    .update({status:"pending",sent_at:new Date().toISOString()})
+    .eq("id",contractId).in("status",["draft","sent"]).select("id").single();
+  if(updated)return {error:"Resend accepted the agreement but its status needs attention. Do not resend yet."};
 
   await logActivity({
     action: "sent",
@@ -154,7 +156,6 @@ export async function sendContractAction(contractId: string) {
   revalidatePath(`/contracts/${contractId}`);
   revalidatePath("/contracts");
 
-  if (!result.success) return { error: "Saved, but the email failed to send: " + result.error };
   return { success: true };
 }
 

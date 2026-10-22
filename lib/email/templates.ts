@@ -28,6 +28,19 @@ Let me know if you'd like any changes.
 
 {{business_name}}`,
   },
+  quote_reminder: {
+    subject: "Reminder: your Castaneda Strings quote expires {{expiry_date}}",
+    body: `Hi {{client_first_name}},
+
+Just a reminder that your quote for {{event_type}} expires {{expiry_date}}.
+
+You can review it and respond here:
+{{quote_link}}
+
+If you have questions, reply directly.
+
+{{business_name}}`,
+  },
   quote_accepted_admin: {
     subject: "Quote accepted: {{quote_number}}",
     body: `{{client_name}} accepted quote {{quote_number}} ({{total}}).
@@ -127,7 +140,7 @@ export function brandedHtml(subject: string, plainBody: string): string {
       const trimmed = block.trim();
       // A block that's nothing but a URL becomes a real button, not plain text.
       if (/^https?:\/\/\S+$/.test(trimmed)) {
-        return `<p style="margin:0 0 16px 0;"><a href="${trimmed}" style="display:inline-block;background:#0f6e5e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">View it →</a></p>`;
+        return `<p style="margin:0 0 16px 0;"><a href="${escapeHtml(trimmed)}" style="display:inline-block;background:#0f6e5e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">View it →</a></p>`;
       }
       const withBreaks = block
         .split("\n")
@@ -164,7 +177,9 @@ function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\x27/g, "&#39;");
 }
 
 function linkify(text: string): string {

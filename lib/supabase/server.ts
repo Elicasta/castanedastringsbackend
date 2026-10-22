@@ -40,3 +40,6 @@ export function createAdminClient() {
     }
   );
 }
+
+/** Backwards-compatible session client used by Castaneda Strings routes. */
+export const createClient = createAdminClient;

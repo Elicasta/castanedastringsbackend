@@ -1,8 +1,14 @@
 import { Resend } from "resend";
 import { EMAIL_TEMPLATES, renderTemplate, brandedHtml, type EmailTemplateKey } from "./templates";
 import { logCommunication } from "../communications";
+import { getEmailTemplate } from "./managed-templates";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Do not instantiate on import: Next builds pages without third-party env keys.
+let resend:Resend|null=null;
+function getResend(){
+  if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
+  return resend??(resend=new Resend(process.env.RESEND_API_KEY));
+}
 
 interface SendTemplateEmailParams {
   to: string;
@@ -21,13 +27,14 @@ interface SendTemplateEmailParams {
  * without first logging the attempt.
  */
 export async function sendTemplateEmail(params: SendTemplateEmailParams) {
-  const tmpl = EMAIL_TEMPLATES[params.template];
+  const tmpl = await getEmailTemplate(params.template);
   const subject = renderTemplate(tmpl.subject, params.vars);
   const body = renderTemplate(tmpl.body, params.vars);
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
+      ...(process.env.RESEND_INBOUND_EMAIL ? { replyTo: process.env.RESEND_INBOUND_EMAIL } : {}),
       to: params.to,
       subject,
       text: body,

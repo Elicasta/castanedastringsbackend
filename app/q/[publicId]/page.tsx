@@ -18,6 +18,9 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ pu
 
   if (!quote) notFound();
 
+  const expired = !!quote.valid_until && quote.valid_until < new Date().toISOString().slice(0,10);
+  const items = (quote.quote_items ?? []).sort((a:{sort_order:number},b:{sort_order:number})=>a.sort_order-b.sort_order);
+
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-md mx-auto space-y-4">
@@ -36,16 +39,14 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ pu
         <Card>
           <h2 className="font-semibold mb-3">Line items</h2>
           <div className="divide-y divide-border">
-            {quote.quote_items?.map((item: { id: string; name: string; quantity: number; unit_price_cents: number; total_cents: number }) => (
+            {items.filter((i:{item_kind?:string})=>!i.item_kind || i.item_kind==="standard").map((item: { id: string; name: string; quantity: number; unit_price_cents: number; total_cents: number }) => (
               <div key={item.id} className="py-2.5 flex justify-between gap-3">
                 <p className="text-sm">{item.name} <span className="text-muted">× {item.quantity}</span></p>
                 <p className="text-sm font-medium">{formatCents(item.total_cents)}</p>
               </div>
             ))}
           </div>
-          <div className="border-t border-border mt-2 pt-3 flex justify-between font-semibold">
-            <span>Total</span><span>{formatCents(quote.total_cents)}</span>
-          </div>
+          <div className="border-t border-border mt-2 pt-3 flex justify-between font-semibold"><span>Base total</span><span>{formatCents(quote.total_cents)}</span></div>
         </Card>
 
         {quote.notes_to_client && (
@@ -54,10 +55,12 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ pu
           </Card>
         )}
 
-        {quote.status === "pending" ? (
-          <QuoteResponse publicId={publicId} />
+        {quote.status === "pending" && !expired ? (
+          <QuoteResponse publicId={publicId} items={items} discountCents={quote.discount_cents??0} taxCents={quote.tax_cents??0} />
+        ) : quote.status==="accepted" ? (
+          <Card><p className="font-semibold mb-2">Quote accepted</p><p className="text-sm text-muted">Thank you. We will contact you with the invoice and performance agreement once they're ready. Your date is confirmed only after the required agreement and payment are complete.</p></Card>
         ) : (
-          <p className="text-center text-sm text-muted">This quote is {quote.status}.</p>
+          <p className="text-center text-sm text-muted">This quote is {expired && quote.status === "pending" ? "expired" : quote.status}.</p>
         )}
       </div>
     </div>

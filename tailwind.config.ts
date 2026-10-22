@@ -8,6 +8,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        brand: { DEFAULT: '#009f87', dark: '#007f70', light: '#e7f6f2' },
+        foreground: '#161d20',
+        muted: '#6b7280',
+        surface: '#ffffff',
+        border: '#e6e9ec',
         cream: {
           50: "#fdfaf5",
           100: "#f9f3e8",
