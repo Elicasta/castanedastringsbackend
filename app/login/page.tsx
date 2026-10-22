@@ -3,6 +3,7 @@ import { previewLoginEnabled } from "@/lib/temporary-preview-auth";
 import { loginAction } from "@/lib/actions/auth";
 import { Input, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default async function LoginPage({
   searchParams,
@@ -38,6 +39,7 @@ export default async function LoginPage({
           </div>
           <Button type="submit" className="w-full">Sign in</Button>
         </form>
+        {previewLoginEnabled()&&<div className="text-center mt-5 space-y-2"><Link href="/register" className="block text-sm text-[#087b68] font-semibold">Create owner account</Link><Link href="/preview/access" className="block text-xs text-neutral-500">Use temporary preview access</Link></div>}
       </div>
     </div>
   );
